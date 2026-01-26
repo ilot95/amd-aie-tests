@@ -12,8 +12,8 @@ from aie.iron import ObjectFifo, Program, Runtime, Worker
 from aie.iron.placers import SequentialPlacer
 from aie.iron.device import NPU1Col1, NPU2
 from aie.iron.controlflow import range_
-from aie.helpers.dialects.ext.scf import if_, else_
-from aie.helpers.dialects.ext.func import func
+from aie.helpers.dialects.scf import if_, else_
+from aie.helpers.dialects.func import func
 from aie.dialects.aie import *
 from aie.dialects.aiex import *
 
@@ -94,11 +94,13 @@ def core_fn(of_in, of_out,of_out_odd):
         #first = index.casts(T.ui32(),elemIn[i])
     with if_(elemIn[0] % 2 ==0,hasElse=True) as if_op:
         #pass
-
+        #elemOut = of_out.acquire(1)
         elemOut[0] = elemIn[0]
+        #of_out.release(1)
     with else_(if_op):
-
+        #elemOut_odd = of_out_odd.acquire(1)
         elemOut_odd[0] = elemIn[0]
+        #of_out_odd.release(1)
 
     of_out_odd.release(1)
     of_in.release(1)
