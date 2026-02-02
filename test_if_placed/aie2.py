@@ -92,7 +92,6 @@ def external_mem_to_core():
                         elemOut_even[0] = elem_in[0]
                         of_out1.release(ObjectFifoPort.Produce, 1)
                     with else_(if_op):
-                        pass
                         elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
                         elemOut_odd[0] = elem_in[0]
                         of_out1_odd.release(ObjectFifoPort.Produce, 1)
@@ -116,18 +115,22 @@ def external_mem_to_core():
                 #        trace_size=trace_size,
                 #    )
                 npu_dma_memcpy_nd(
-                    metadata=of_in, bd_id=1, mem=inTensor, sizes=[1, 1, 1, elements]
+                    metadata=of_in, bd_id=1, mem=inTensor, sizes=[1, 1, 1, elements] ,issue_token=False
                 )
 
 
-                npu_dma_memcpy_nd(
-                    metadata=of_out_odd, bd_id=0, mem=outOddTensor, sizes=[1, 1, 1, 32]
-                )
+
 
                 npu_dma_memcpy_nd(
-                    metadata=of_out, bd_id=2, mem=outTensor, sizes=[1, 1, 1, 32]
+                    metadata=of_out, bd_id=2, mem=outTensor, sizes=[1, 1, 1, 32],issue_token=False
                 )
                 # of_out will only complete after of_in completes, so we can just wait on of_out instead of both
+
+
+                npu_dma_memcpy_nd(
+                    metadata=of_out_odd, bd_id=0, mem=outOddTensor, sizes=[1, 1, 1, 32], issue_token=False
+                )
+
                 dma_wait(of_out)
                 #trace_utils.gen_trace_done_aie2(ShimTile20)
 
