@@ -29,12 +29,14 @@ def external_mem_to_core():
 
 
             tile_ty = np.ndarray[(tile_ty_size,), np.dtype[np.int32]]
+
+            buffer_ty = np.ndarray[(elements,), np.dtype[np.int32]]
             #trace_size = 8192
 
             # External, binary kernel definition
-            vector_plus_one = external_func(
-                "vector_plus_one",
-                inputs=[tile_ty, tile_ty, np.int32]
+            odd_even = external_func(
+                "odd_even",
+                inputs=[buffer_ty, buffer_ty,buffer_ty, np.int32]
             )
 
             # Tile declarations
@@ -67,38 +69,36 @@ def external_mem_to_core():
             even_buffer = aie.buffer(
                 tile=ComputeTile02,
                 datatype=np.ndarray[(elements,), np.dtype[np.int32]],
-                name=f"inputbuffer",
-                initial_value=np.array(-1, dtype=np.int32)
+                name=f"evenbuffer",
+                initial_value=np.array(0, dtype=np.int32)
             )
             odd_buffer = aie.buffer(
                 tile=ComputeTile02,
                 datatype=np.ndarray[(elements,), np.dtype[np.int32]],
-                name=f"outputbuffer",
-                initial_value=np.array(-2, dtype=np.int32)
-            )
-            cnt_odd = aie.buffer(
-                tile=ComputeTile02,
-                datatype=np.ndarray[(1,), np.dtype[np.int32]],
-                name=f"cntodd",
+                name=f"oddbuffer",
                 initial_value=np.array(0, dtype=np.int32)
             )
-            cnt_even = aie.buffer(
+            input_buffer = aie.buffer(
                 tile=ComputeTile02,
-                datatype=np.ndarray[(1,), np.dtype[np.int32]],
-                name=f"cnteven",
+                datatype=np.ndarray[(elements,), np.dtype[np.int32]],
+                name=f"inputbuffer",
                 initial_value=np.array(0, dtype=np.int32)
             )
+
             # Set up compute tiles
             # Compute tile
-            @core(ComputeTile02, "vector_operators.o")
+            @core(ComputeTile02, "odd_even.o")
             def core_body_02():
                 for i in range_(iters):
                     elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
-                    with if_(elem_in[0] % 2 == 0, hasElse=True) as if_op:
-                        even_buffer[i] = elem_in[0]
-                    with else_(if_op):
-                        odd_buffer[i] = elem_in[0]
+
+                    input_buffer[i] = elem_in[0]
+
                     of_in1.release(ObjectFifoPort.Consume, 1)
+
+                call(odd_even, [input_buffer, odd_buffer,even_buffer, elements])
+
+
                 for i in range_(iters):
 
                     elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)

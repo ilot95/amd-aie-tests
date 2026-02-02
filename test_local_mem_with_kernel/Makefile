@@ -33,7 +33,7 @@ build/aie.mlir: ${srcdir}/aie2.py
 
 
 
-build/vector_operators.o: ${srcdir}/vector_operators.cc
+build/odd_even.o: ${srcdir}/odd_even.cc
 	mkdir -p ${@D}
 ifeq ($(devicename),npu)
 	cd ${@D} && ${PEANO_INSTALL_DIR}/bin/clang++ ${PEANOWRAP2_FLAGS} -c $< -o ${@F}
@@ -44,7 +44,7 @@ else
 endif
 
 #--dynamic-objFifos  --no-xchesscc  --no-xbridge    --xchesscc --xbridge -v
-build/final.xclbin: build/aie.mlir build/vector_operators.o
+build/final.xclbin: build/aie.mlir build/odd_even.o
 	mkdir -p ${@D}
 	cd ${@D} && aiecc.py --aie-generate-xclbin --dynamic-objFifos --no-compile-host --xclbin-name=${@F} \
 				--no-xchesscc --no-xbridge  \
