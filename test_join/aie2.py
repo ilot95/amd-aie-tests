@@ -23,7 +23,7 @@ def external_mem_to_core():
 
         @device(dev)
         def device_body():
-            elements = 64
+            elements = 8
             tile_ty_size = 1
             iters = elements // tile_ty_size
 
@@ -31,12 +31,13 @@ def external_mem_to_core():
             tile_ty = np.ndarray[(tile_ty_size,), np.dtype[np.int32]]
 
             buffer_ty = np.ndarray[(elements,), np.dtype[np.int32]]
+            buffer_ty_out = np.ndarray[(elements*elements,), np.dtype[np.int32]]
             #trace_size = 8192
 
             # External, binary kernel definition
             odd_even = external_func(
                 "odd_even",
-                inputs=[buffer_ty, buffer_ty,buffer_ty, np.int32]
+                inputs=[buffer_ty,buffer_ty, buffer_ty_out,buffer_ty_out, np.int32]
             )
 
             # Tile declarations
@@ -46,13 +47,17 @@ def external_mem_to_core():
             MemTile01 = tile(0, 1)
             MemTile11 = tile(1, 1)
             ComputeTile02 = tile(0, 2)
-            ComputeTile12 = tile(1, 2)
+
 
             # AIE-array data movement with object fifos
             # Input
             of_in = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
             of_in1 = object_fifo("in1", MemTile01, ComputeTile02, 2, tile_ty)
             object_fifo_link(of_in, of_in1)
+
+            of_in_two = object_fifo("in_two", ShimTile00, MemTile01, 2, tile_ty)
+            of_in1_two = object_fifo("in1_two", MemTile01, ComputeTile02, 2, tile_ty)
+            object_fifo_link(of_in_two, of_in1_two)
 
 
 
@@ -66,25 +71,25 @@ def external_mem_to_core():
             object_fifo_link(of_out1_odd, of_out_odd)
 
 
-            even_buffer = aie.buffer(
+            value_buffer = aie.buffer(
                 tile=ComputeTile02,
-                datatype=np.ndarray[(elements,), np.dtype[np.int32]],
+                datatype=np.ndarray[(elements*elements,), np.dtype[np.int32]],
                 name=f"evenbuffer",
-                initial_value=np.array(0, dtype=np.int32)
+                initial_value=np.array(-2, dtype=np.int32)
             )
-            odd_buffer = aie.buffer(
+            index_buffer = aie.buffer(
                 tile=ComputeTile02,
-                datatype=np.ndarray[(elements,), np.dtype[np.int32]],
+                datatype=np.ndarray[(elements*elements,), np.dtype[np.int32]],
                 name=f"oddbuffer",
-                initial_value=np.array(0, dtype=np.int32)
+                initial_value=np.array(-1, dtype=np.int32)
             )
-            input_buffer0 = aie.buffer(
+            input_buffer_0 = aie.buffer(
                 tile=ComputeTile02,
                 datatype=np.ndarray[(elements,), np.dtype[np.int32]],
                 name=f"inputbuffer0",
                 initial_value=np.array(0, dtype=np.int32)
             )
-            input_buffer1 = aie.buffer(
+            input_buffer_1 = aie.buffer(
                 tile=ComputeTile02,
                 datatype=np.ndarray[(elements,), np.dtype[np.int32]],
                 name=f"inputbuffer1",
@@ -96,23 +101,24 @@ def external_mem_to_core():
             @core(ComputeTile02, "odd_even.o")
             def core_body_02():
                 for i in range_(iters):
-                    elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
-
-                    input_buffer[i] = elem_in[0]
-
+                    elem_in_0 = of_in1.acquire(ObjectFifoPort.Consume, 1)
+                    elem_in_1 = of_in1_two.acquire(ObjectFifoPort.Consume, 1)
+                    input_buffer_0[i] = elem_in_0[0]
+                    input_buffer_1[i] = elem_in_1[0]
                     of_in1.release(ObjectFifoPort.Consume, 1)
+                    of_in1_two.release(ObjectFifoPort.Consume, 1)
 
-                call(odd_even, [input_buffer, odd_buffer,even_buffer, elements])
+                call(odd_even, [input_buffer_0,input_buffer_1, index_buffer,value_buffer, elements])
 
 
-                for i in range_(iters):
+                for i in range_(elements*elements):
 
                     elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                    elemOut_even[0] = even_buffer[i]
+                    elemOut_even[0] = value_buffer[i]
                     of_out1.release(ObjectFifoPort.Produce, 1)
 
                     elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
-                    elemOut_odd[0] = odd_buffer[i]
+                    elemOut_odd[0] = index_buffer[i]
                     of_out1_odd.release(ObjectFifoPort.Produce, 1)
 
 
@@ -121,14 +127,15 @@ def external_mem_to_core():
 
 
             # To/from AIE-array data movement
-            data_ty = np.ndarray[(elements,), np.dtype[np.int32]]
+            data_input_ty = np.ndarray[(elements,), np.dtype[np.int32]]
+            data_ouput_ty = np.ndarray[(elements*elements,), np.dtype[np.int32]]
 
             #tiles_to_trace = [ComputeTile02, MemTile01, ShimTile00]
             #if trace_size > 0:
             #    trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
 
-            @runtime_sequence(data_ty, data_ty,data_ty)
-            def sequence(inTensor,outOddTensor, outTensor,):
+            @runtime_sequence(data_input_ty, data_input_ty,data_ouput_ty,data_ouput_ty)
+            def sequence(inTensorA,inTensorB,outOddTensor, outTensor,):
                 #if trace_size > 0:
                 #    trace_utils.configure_packet_tracing_aie2(
                 #        tiles_to_trace=tiles_to_trace,
@@ -136,16 +143,19 @@ def external_mem_to_core():
                 #        trace_size=trace_size,
                 #    )
                 npu_dma_memcpy_nd(
-                    metadata=of_in, bd_id=1, mem=inTensor, sizes=[1, 1, 1, elements]
+                    metadata=of_in, bd_id=0, mem=inTensorA, sizes=[1, 1, 1, elements]
+                )
+                npu_dma_memcpy_nd(
+                    metadata=of_in_two, bd_id=1, mem=inTensorB, sizes=[1, 1, 1, elements]
                 )
 
 
                 npu_dma_memcpy_nd(
-                    metadata=of_out_odd, bd_id=0, mem=outOddTensor, sizes=[1, 1, 1, elements]
+                    metadata=of_out_odd, bd_id=2, mem=outOddTensor, sizes=[1, 1, 1, elements*elements]
                 )
 
                 npu_dma_memcpy_nd(
-                    metadata=of_out, bd_id=2, mem=outTensor, sizes=[1, 1, 1, elements]
+                    metadata=of_out, bd_id=3, mem=outTensor, sizes=[1, 1, 1, elements*elements]
                 )
                 # of_out will only complete after of_in completes, so we can just wait on of_out instead of both
                 dma_wait(of_out)
