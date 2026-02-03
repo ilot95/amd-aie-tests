@@ -122,13 +122,13 @@ def external_mem_to_core():
 
 
                 npu_dma_memcpy_nd(
-                    metadata=of_out, bd_id=2, mem=outTensor, sizes=[1, 1, 1, 32],issue_token=False
+                    metadata=of_out, bd_id=2, mem=outTensor, sizes=[1, 1, 1, 64],issue_token=False ,burst_length=64
                 )
                 # of_out will only complete after of_in completes, so we can just wait on of_out instead of both
 
 
                 npu_dma_memcpy_nd(
-                    metadata=of_out_odd, bd_id=0, mem=outOddTensor, sizes=[1, 1, 1, 32], issue_token=False
+                    metadata=of_out_odd, bd_id=0, mem=outOddTensor, sizes=[1, 1, 1, 64], issue_token=False,burst_length=64
                 )
 
                 dma_wait(of_out)
