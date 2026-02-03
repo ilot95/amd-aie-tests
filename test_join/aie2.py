@@ -100,26 +100,27 @@ def external_mem_to_core():
             # Compute tile
             @core(ComputeTile02, "odd_even.o")
             def core_body_02():
-                for i in range_(iters):
-                    elem_in_0 = of_in1.acquire(ObjectFifoPort.Consume, 1)
-                    elem_in_1 = of_in1_two.acquire(ObjectFifoPort.Consume, 1)
-                    input_buffer_0[i] = elem_in_0[0]
-                    input_buffer_1[i] = elem_in_1[0]
-                    of_in1.release(ObjectFifoPort.Consume, 1)
-                    of_in1_two.release(ObjectFifoPort.Consume, 1)
+                for _ in range_(0xFFFFFFFF):
+                    for i in range_(iters):
+                        elem_in_0 = of_in1.acquire(ObjectFifoPort.Consume, 1)
+                        elem_in_1 = of_in1_two.acquire(ObjectFifoPort.Consume, 1)
+                        input_buffer_0[i] = elem_in_0[0]
+                        input_buffer_1[i] = elem_in_1[0]
+                        of_in1.release(ObjectFifoPort.Consume, 1)
+                        of_in1_two.release(ObjectFifoPort.Consume, 1)
 
-                call(odd_even, [input_buffer_0,input_buffer_1, index_buffer,value_buffer, elements])
+                    call(odd_even, [input_buffer_0,input_buffer_1, index_buffer,value_buffer, elements])
 
 
-                for i in range_(elements*elements):
+                    for i in range_(elements*elements):
 
-                    elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                    elemOut_even[0] = value_buffer[i]
-                    of_out1.release(ObjectFifoPort.Produce, 1)
+                        elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                        elemOut_even[0] = value_buffer[i]
+                        of_out1.release(ObjectFifoPort.Produce, 1)
 
-                    elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
-                    elemOut_odd[0] = index_buffer[i]
-                    of_out1_odd.release(ObjectFifoPort.Produce, 1)
+                        elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
+                        elemOut_odd[0] = index_buffer[i]
+                        of_out1_odd.release(ObjectFifoPort.Produce, 1)
 
 
 

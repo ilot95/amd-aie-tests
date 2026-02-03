@@ -118,7 +118,7 @@ int main(int argc, const char *argv[]) {
     unsigned int opcode = 3;
     auto run =
         kernel(opcode, bo_instr, instr_v.size(), bo_inA,bo_inB, bo_outC, bo_outOdd);
-    run.wait2();
+    run.wait();
 
     auto stop = std::chrono::high_resolution_clock::now();
 
@@ -168,7 +168,6 @@ for (int i = 0; i < IN_SIZE; i++)
   bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
 
-sleep(3);
 
 
      start = std::chrono::high_resolution_clock::now();
@@ -206,6 +205,14 @@ sleep(3);
       memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
 
   memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
+
+
+for (int i = 0; i < IN_SIZE; i++)
+    bufInA[i] = 3;
+
+
+  for (int i = 0; i < IN_SIZE; i++)
+    bufInB[i] = 3;
 
   bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
