@@ -41,10 +41,10 @@ def external_mem_to_core():
 
             # Tile declarations
             ShimTile00 = tile(0, 0)
-            ShimTile10 = tile(1, 0)
+            #ShimTile10 = tile(1, 0)
             #ShimTile20 = tile(2, 0)
             MemTile01 = tile(0, 1)
-            MemTile11 = tile(1, 1)
+            #MemTile11 = tile(1, 1)
             ComputeTile02 = tile(0, 2)
             ComputeTile12 = tile(1, 2)
 
@@ -57,12 +57,12 @@ def external_mem_to_core():
 
 
             # Output
-            of_out1 = object_fifo("out1", ComputeTile02, MemTile11, 2, tile_ty)
-            of_out = object_fifo("out", MemTile11, ShimTile10, 2, tile_ty)
+            of_out1 = object_fifo("out1", ComputeTile02, MemTile01, 2, tile_ty)
+            of_out = object_fifo("out", MemTile01, ShimTile00, 2, tile_ty)
             object_fifo_link(of_out1, of_out)
 
-            of_out1_odd = object_fifo("outodd", ComputeTile02, MemTile11, 2, tile_ty)
-            of_out_odd = object_fifo("odd", MemTile11, ShimTile10, 2, tile_ty)
+            of_out1_odd = object_fifo("outodd", ComputeTile02, MemTile01, 2, tile_ty)
+            of_out_odd = object_fifo("odd", MemTile01, ShimTile00, 2, tile_ty)
             object_fifo_link(of_out1_odd, of_out_odd)
 
 
