@@ -126,28 +126,31 @@ def external_mem_to_core():
 
             @runtime_sequence(data_ty, data_ty,data_ty)
             def sequence(inTensor,outOddTensor, outTensor,):
-                #if trace_size > 0:
-                #    trace_utils.configure_packet_tracing_aie2(
-                #        tiles_to_trace=tiles_to_trace,
-                #        shim=ShimTile20,
-                #        trace_size=trace_size,
-                #    )
 
-                npu_dma_memcpy_nd(
-                    metadata=of_in, bd_id=2, mem=inTensor, sizes=[1, 1, 1, elements],issue_token=True
+
+                # npu_dma_memcpy_nd(
+                #     metadata=of_in, bd_id=2, mem=inTensor, sizes=[1, 1, 1, elements],issue_token=True
+                # )
+                # npu_dma_memcpy_nd(
+                #     metadata=of_out_odd, bd_id=1, mem=outOddTensor, sizes=[1, 1, 1, elements],issue_token=True
+                # )
+                # npu_dma_memcpy_nd(
+                #     metadata=of_out, bd_id=0, mem=outTensor, sizes=[1, 1, 1, elements],issue_token=True
+                # )
+                # dma_wait(of_out,of_out_odd,of_in)
+                in_task = shim_dma_single_bd_task(of_in, inTensor, sizes=[1, 1, 1, elements])
+                out_task = shim_dma_single_bd_task(
+                    of_out_odd, outOddTensor, sizes=[1, 1, 1, elements], issue_token=True
+                )
+                out_task1 = shim_dma_single_bd_task(
+                    of_out, outTensor, sizes=[1, 1, 1, elements], issue_token=True
                 )
 
+                dma_start_task(in_task, out_task,out_task1)
+                dma_await_task(out_task,out_task1)
+                dma_free_task(out_task,out_task1,in_task)
 
-                npu_dma_memcpy_nd(
-                    metadata=of_out_odd, bd_id=1, mem=outOddTensor, sizes=[1, 1, 1, elements],issue_token=True
-                )
 
-                npu_dma_memcpy_nd(
-                    metadata=of_out, bd_id=0, mem=outTensor, sizes=[1, 1, 1, elements],issue_token=True
-                )
-                # of_out will only complete after of_in completes, so we can just wait on of_out instead of both
-                dma_wait(of_out,of_out_odd,of_in)
-                #trace_utils.gen_trace_done_aie2(ShimTile20)
 
     res = ctx.module.operation.verify()
     if res == True:
