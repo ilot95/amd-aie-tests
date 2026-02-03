@@ -43,27 +43,27 @@ def external_mem_to_core():
             ShimTile00 = tile(0, 0)
             #ShimTile10 = tile(1, 0)
             #ShimTile20 = tile(2, 0)
-            MemTile01 = tile(0, 1)
+            #MemTile01 = tile(0, 1)
             #MemTile11 = tile(1, 1)
             ComputeTile02 = tile(0, 2)
             ComputeTile12 = tile(1, 2)
 
             # AIE-array data movement with object fifos
             # Input
-            of_in = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
-            of_in1 = object_fifo("in1", MemTile01, ComputeTile02, 2, tile_ty)
-            object_fifo_link(of_in, of_in1)
+            #of_in = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
+            of_in1 = object_fifo("in1", ShimTile00, ComputeTile02, 2, tile_ty)
+            #object_fifo_link(of_in, of_in1)
 
 
 
             # Output
-            of_out1 = object_fifo("out1", ComputeTile02, MemTile01, 2, tile_ty)
-            of_out = object_fifo("out", MemTile01, ShimTile00, 2, tile_ty)
-            object_fifo_link(of_out1, of_out)
+            #of_out1 = object_fifo("out1", ComputeTile02, MemTile01, 2, tile_ty)
+            of_out1 = object_fifo("out", ComputeTile02, ShimTile00, 2, tile_ty)
+            #object_fifo_link(of_out1, of_out)
 
-            of_out1_odd = object_fifo("outodd", ComputeTile02, MemTile01, 2, tile_ty)
-            of_out_odd = object_fifo("odd", MemTile01, ShimTile00, 2, tile_ty)
-            object_fifo_link(of_out1_odd, of_out_odd)
+            #of_out1_odd = object_fifo("outodd", ComputeTile02, MemTile01, 2, tile_ty)
+            of_out1_odd = object_fifo("odd", ComputeTile02, ShimTile00, 2, tile_ty)
+            #object_fifo_link(of_out1_odd, of_out_odd)
 
 
             even_buffer = aie.buffer(
@@ -99,16 +99,14 @@ def external_mem_to_core():
 
                 call(odd_even, [input_buffer, odd_buffer,even_buffer, elements])
 
-
                 for i in range_(iters):
 
                     elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
                     elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
+
                     elemOut_even[0] = even_buffer[i]
-
-
-
                     elemOut_odd[0] = odd_buffer[i]
+
                     of_out1_odd.release(ObjectFifoPort.Produce, 1)
                     of_out1.release(ObjectFifoPort.Produce, 1)
 
@@ -138,12 +136,12 @@ def external_mem_to_core():
                 #     metadata=of_out, bd_id=0, mem=outTensor, sizes=[1, 1, 1, elements],issue_token=True
                 # )
                 # dma_wait(of_out,of_out_odd,of_in)
-                in_task = shim_dma_single_bd_task(of_in, inTensor, sizes=[1, 1, 1, elements])
+                in_task = shim_dma_single_bd_task(of_in1, inTensor, sizes=[1, 1, 1, elements])
                 out_task = shim_dma_single_bd_task(
-                    of_out_odd, outOddTensor, sizes=[1, 1, 1, elements], issue_token=True
+                    of_out1_odd, outOddTensor, sizes=[1, 1, 1, elements], issue_token=True
                 )
                 out_task1 = shim_dma_single_bd_task(
-                    of_out, outTensor, sizes=[1, 1, 1, elements], issue_token=True
+                    of_out1, outTensor, sizes=[1, 1, 1, elements], issue_token=True
                 )
 
                 dma_start_task(in_task, out_task,out_task1)
