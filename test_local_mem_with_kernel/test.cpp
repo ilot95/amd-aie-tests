@@ -100,15 +100,34 @@ int main(int argc, const char *argv[]) {
   float npu_time_total = 0;
   float npu_time_min = 9999999;
   float npu_time_max = 0;
+
+  auto run = xrt::run(kernel);
+  unsigned int opcode = 3;
+  run.set_arg(0,opcode);
+  run.set_arg(1,bo_instr);
+  run.set_arg(2,instr_v.size());
+  run.set_arg(3,bo_inA);
+  run.set_arg(4,bo_outC);
+  run.set_arg(5,bo_outOdd);
+  run.set_arg(6,0);
+  run.set_arg(7,bo_trace);
+
+
   for (unsigned iter = 0; iter < num_iter; iter++) {
-    if (verbosity >= 1)
+
       std::cout << "Running Kernel.\n";
 
     auto start = std::chrono::high_resolution_clock::now();
-    unsigned int opcode = 3;
-    auto run =
-        kernel(opcode, bo_instr, instr_v.size(), bo_inA, bo_outC, bo_outOdd, 0, bo_trace);
-    run.wait();
+
+    /*auto run =
+        kernel(opcode, bo_instr, instr_v.size(), bo_inA, bo_outC, bo_outOdd, 0, bo_trace);*/
+    run.start();
+    //run.wait2();
+
+    ert_cmd_state r = run.wait();
+    if(r != ERT_CMD_STATE_COMPLETED){
+        std::cout << "Something is wrong: " << r<<"\n";
+    }
 	bo_trace.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     auto stop = std::chrono::high_resolution_clock::now();
 
@@ -117,9 +136,7 @@ int main(int argc, const char *argv[]) {
     bo_outOdd.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     // Accumulate run times
     /* Warmup iterations do not count towards average runtime. */
-    if (iter < n_warmup_iterations) {
-      continue;
-    }
+
     float npu_time =
         std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
             .count();
@@ -161,6 +178,10 @@ int main(int argc, const char *argv[]) {
           std::cout << "Correct output " << test << " == " << ref << std::endl;
       }
     }
+    /*for (int i = 0; i < IN_SIZE; i++)
+    bufInA[i] = iter;
+    bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);*/
+
   }
 
   // print out profiling result

@@ -63,8 +63,7 @@ int main(int argc, const char *argv[]) {
   auto bo_outC = xrt::bo(device, OUT_SIZE * sizeof(DATATYPE),
                          XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(6));
   int tmp_trace_size = (trace_size > 0) ? trace_size * 4 : 1;
-  auto bo_trace = xrt::bo(device, tmp_trace_size,
-						XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(7));
+
 
   if (verbosity >= 1)
     std::cout << "Writing data into buffer objects.\n";
@@ -97,9 +96,7 @@ int main(int argc, const char *argv[]) {
   memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
 
 
-  // Initialize buffer bo_trace
-  char *bufTrace = bo_trace.map<char *>();
-  memset(bufTrace, 0, trace_size);
+
 
   // sync host to device memories
   bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
@@ -107,7 +104,7 @@ int main(int argc, const char *argv[]) {
   bo_inB.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-  bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
 
   // Execute the kernel and wait to finish
   int errors = 0;
@@ -115,45 +112,28 @@ int main(int argc, const char *argv[]) {
   float npu_time_total = 0;
   float npu_time_min = 9999999;
   float npu_time_max = 0;
-  for (unsigned iter = 0; iter < num_iter; iter++) {
-    if (verbosity >= 1)
-      std::cout << "Running Kernel.\n";
+
 
     auto start = std::chrono::high_resolution_clock::now();
     unsigned int opcode = 3;
     auto run =
-        kernel(opcode, bo_instr, instr_v.size(), bo_inA,bo_inB, bo_outC, bo_outOdd, bo_trace);
-    run.wait();
-	bo_trace.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+        kernel(opcode, bo_instr, instr_v.size(), bo_inA,bo_inB, bo_outC, bo_outOdd);
+    run.wait2();
+
     auto stop = std::chrono::high_resolution_clock::now();
 
     // Sync device to host memories
     bo_outC.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     bo_outOdd.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
-    // Accumulate run times
-    /* Warmup iterations do not count towards average runtime. */
-    if (iter < n_warmup_iterations) {
-      continue;
-    }
+
     float npu_time =
         std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
             .count();
     std::cout << std::endl
               << "NPU time: " << npu_time << "us."
               << std::endl;
-    npu_time_total += npu_time;
-    npu_time_min = (npu_time < npu_time_min) ? npu_time : npu_time_min;
-    npu_time_max = (npu_time > npu_time_max) ? npu_time : npu_time_max;
 
-	// only output the trace with the first formal iteration
-	if (trace_size > 0 && iter == n_warmup_iterations) {
-		test_utils::write_out_trace((char *)bufTrace, trace_size, trace_file);
-	}
 
-    // Compare out to golden
-    if (verbosity >= 1) {
-      std::cout << "Verifying results ..." << std::endl;
-    }
     for (uint32_t i = 0; i < OUT_SIZE; i++) {
       int32_t test = bufOut[i];
       std::cout << test << " ";
@@ -165,35 +145,110 @@ int main(int argc, const char *argv[]) {
     }
     std::cout << std::endl;
 
-  }
 
-  // print out profiling result
-  std::cout << std::endl
-          << "Number of iterations: " << n_iterations
-          << " (warmup iterations: " << n_warmup_iterations << ")"
-          << std::endl;
-
-  std::cout << std::endl
-            << "Avg NPU time: " << npu_time_total / n_iterations << "us."
-            << std::endl;
+for (int i = 0; i < IN_SIZE; i++)
+    bufInA[i] = 3;
 
 
-  float macs = 0;
-  if (macs > 0)
-    std::cout << "Avg NPU gflops: "
-              << macs / (1000 * npu_time_total / n_iterations) << std::endl;
+  for (int i = 0; i < IN_SIZE; i++)
+    bufInB[i] = i+1;
 
-  std::cout << std::endl
-            << "Min NPU time: " << npu_time_min << "us." << std::endl;
-  if (macs > 0)
-    std::cout << "Max NPU gflops: " << macs / (1000 * npu_time_min)
+
+  memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+
+  memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
+
+
+
+
+  bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_inB.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
+
+sleep(3);
+
+
+     start = std::chrono::high_resolution_clock::now();
+
+     //run = kernel(opcode, bo_instr, instr_v.size(), bo_inA,bo_inB, bo_outC, bo_outOdd);
+     run.start();
+    run.wait2();
+
+     stop = std::chrono::high_resolution_clock::now();
+
+    // Sync device to host memories
+    bo_outC.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+    bo_outOdd.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
+     npu_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
+            .count();
+    std::cout << std::endl
+              << "NPU time: " << npu_time << "us."
               << std::endl;
 
-  std::cout << std::endl
-            << "Max NPU time: " << npu_time_max << "us." << std::endl;
-  if (macs > 0)
-    std::cout << "Min NPU gflops: " << macs / (1000 * npu_time_max)
+
+    for (uint32_t i = 0; i < OUT_SIZE; i++) {
+      int32_t test = bufOut[i];
+      std::cout << test << " ";
+    }
+    std::cout  << "\n";
+    for (uint32_t i = 0; i < OUT_SIZE; i++) {
+      int32_t test = bufOutOdd[i];
+      std::cout << test << " ";
+    }
+    std::cout << std::endl;
+
+
+      memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+
+  memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
+
+  bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_inB.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
+
+
+
+     start = std::chrono::high_resolution_clock::now();
+    opcode = 3;
+     //run = kernel(opcode, bo_instr, instr_v.size(), bo_inA,bo_inB, bo_outC, bo_outOdd);
+     run.start();
+    run.wait2();
+
+     stop = std::chrono::high_resolution_clock::now();
+
+    // Sync device to host memories
+    bo_outC.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+    bo_outOdd.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
+     npu_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
+            .count();
+    std::cout << std::endl
+              << "NPU time: " << npu_time << "us."
               << std::endl;
+
+
+    for (uint32_t i = 0; i < OUT_SIZE; i++) {
+      int32_t test = bufOut[i];
+      std::cout << test << " ";
+    }
+    std::cout  << "\n";
+    for (uint32_t i = 0; i < OUT_SIZE; i++) {
+      int32_t test = bufOutOdd[i];
+      std::cout << test << " ";
+    }
+    std::cout << std::endl;
+
+
+
 
 
   // Print Pass/Fail result of our test

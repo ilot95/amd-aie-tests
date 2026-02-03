@@ -78,18 +78,13 @@ def external_mem_to_core():
                 name=f"oddbuffer",
                 initial_value=np.array(0, dtype=np.int32)
             )
-            input_buffer0 = aie.buffer(
+            input_buffer = aie.buffer(
                 tile=ComputeTile02,
                 datatype=np.ndarray[(elements,), np.dtype[np.int32]],
                 name=f"inputbuffer0",
                 initial_value=np.array(0, dtype=np.int32)
             )
-            input_buffer1 = aie.buffer(
-                tile=ComputeTile02,
-                datatype=np.ndarray[(elements,), np.dtype[np.int32]],
-                name=f"inputbuffer1",
-                initial_value=np.array(0, dtype=np.int32)
-            )
+
 
             # Set up compute tiles
             # Compute tile
@@ -108,12 +103,14 @@ def external_mem_to_core():
                 for i in range_(iters):
 
                     elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                    elemOut_even[0] = even_buffer[i]
-                    of_out1.release(ObjectFifoPort.Produce, 1)
-
                     elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
+                    elemOut_even[0] = even_buffer[i]
+
+
+
                     elemOut_odd[0] = odd_buffer[i]
                     of_out1_odd.release(ObjectFifoPort.Produce, 1)
+                    of_out1.release(ObjectFifoPort.Produce, 1)
 
 
 
@@ -135,20 +132,21 @@ def external_mem_to_core():
                 #        shim=ShimTile20,
                 #        trace_size=trace_size,
                 #    )
+
                 npu_dma_memcpy_nd(
-                    metadata=of_in, bd_id=1, mem=inTensor, sizes=[1, 1, 1, elements]
+                    metadata=of_in, bd_id=2, mem=inTensor, sizes=[1, 1, 1, elements],issue_token=True
                 )
 
 
                 npu_dma_memcpy_nd(
-                    metadata=of_out_odd, bd_id=0, mem=outOddTensor, sizes=[1, 1, 1, elements]
+                    metadata=of_out_odd, bd_id=1, mem=outOddTensor, sizes=[1, 1, 1, elements],issue_token=True
                 )
 
                 npu_dma_memcpy_nd(
-                    metadata=of_out, bd_id=2, mem=outTensor, sizes=[1, 1, 1, elements]
+                    metadata=of_out, bd_id=0, mem=outTensor, sizes=[1, 1, 1, elements],issue_token=True
                 )
                 # of_out will only complete after of_in completes, so we can just wait on of_out instead of both
-                dma_wait(of_out)
+                dma_wait(of_out,of_out_odd,of_in)
                 #trace_utils.gen_trace_done_aie2(ShimTile20)
 
     res = ctx.module.operation.verify()
