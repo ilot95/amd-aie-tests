@@ -59,9 +59,7 @@ int main(int argc, const char *argv[]) {
                          XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(4));
   auto bo_outC = xrt::bo(device, OUT_SIZE * sizeof(DATATYPE),
                          XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(5));
-  int tmp_trace_size = (trace_size > 0) ? trace_size * 4 : 1;
-  auto bo_trace = xrt::bo(device, tmp_trace_size,
-						XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(7));
+
 
   if (verbosity >= 1)
     std::cout << "Writing data into buffer objects.\n";
@@ -83,16 +81,14 @@ int main(int argc, const char *argv[]) {
   memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
 
 
-  // Initialize buffer bo_trace
-  char *bufTrace = bo_trace.map<char *>();
-  memset(bufTrace, 0, trace_size);
+
 
   // sync host to device memories
   bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-  bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
 
   // Execute the kernel and wait to finish
   int errors = 0;
@@ -109,8 +105,8 @@ int main(int argc, const char *argv[]) {
   run.set_arg(3,bo_inA);
   run.set_arg(4,bo_outC);
   run.set_arg(5,bo_outOdd);
-  run.set_arg(6,0);
-  run.set_arg(7,bo_trace);
+  //run.set_arg(6,0);
+  //run.set_arg(7,bo_trace);
 
 
   for (unsigned iter = 0; iter < num_iter; iter++) {
@@ -128,7 +124,7 @@ int main(int argc, const char *argv[]) {
     if(r != ERT_CMD_STATE_COMPLETED){
         std::cout << "Something is wrong: " << r<<"\n";
     }
-	bo_trace.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
     auto stop = std::chrono::high_resolution_clock::now();
 
     // Sync device to host memories
@@ -147,10 +143,7 @@ int main(int argc, const char *argv[]) {
     npu_time_min = (npu_time < npu_time_min) ? npu_time : npu_time_min;
     npu_time_max = (npu_time > npu_time_max) ? npu_time : npu_time_max;
 
-	// only output the trace with the first formal iteration
-	if (trace_size > 0 && iter == n_warmup_iterations) {
-		test_utils::write_out_trace((char *)bufTrace, trace_size, trace_file);
-	}
+
 
     // Compare out to golden
     if (verbosity >= 1) {
@@ -166,22 +159,11 @@ int main(int argc, const char *argv[]) {
       std::cout << test << " ";
     }
     std::cout << std::endl;
-    for (uint32_t i = 0; i < IN_SIZE; i++) {
-      int32_t ref = bufInA[i] + 2;
-      int32_t test = bufOut[i];
-      if (test != ref) {
-        if (verbosity >= 1)
-          std::cout << "Error in output " << test << " != " << ref << std::endl;
-        errors++;
-      } else {
-        if (verbosity >= 1)
-          std::cout << "Correct output " << test << " == " << ref << std::endl;
-      }
-    }
+
     /*for (int i = 0; i < IN_SIZE; i++)
     bufInA[i] = iter;
     bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);*/
-
+    bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   }
 
   // print out profiling result
@@ -195,22 +177,6 @@ int main(int argc, const char *argv[]) {
             << std::endl;
 
 
-  float macs = 0;
-  if (macs > 0)
-    std::cout << "Avg NPU gflops: "
-              << macs / (1000 * npu_time_total / n_iterations) << std::endl;
-
-  std::cout << std::endl
-            << "Min NPU time: " << npu_time_min << "us." << std::endl;
-  if (macs > 0)
-    std::cout << "Max NPU gflops: " << macs / (1000 * npu_time_min)
-              << std::endl;
-
-  std::cout << std::endl
-            << "Max NPU time: " << npu_time_max << "us." << std::endl;
-  if (macs > 0)
-    std::cout << "Min NPU gflops: " << macs / (1000 * npu_time_max)
-              << std::endl;
 
 
   // Print Pass/Fail result of our test

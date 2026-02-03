@@ -148,7 +148,7 @@ def external_mem_to_core():
 
                 dma_start_task(in_task, out_task,out_task1)
                 dma_await_task(out_task,out_task1)
-                dma_free_task(out_task,out_task1,in_task)
+                dma_free_task(in_task)
 
 
 
