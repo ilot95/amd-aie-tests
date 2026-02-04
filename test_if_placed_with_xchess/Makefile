@@ -13,6 +13,12 @@ else ifeq (${devicename}, npu2)
 KERNEL_CFLAGS=${CHESSCCWRAP2P_FLAGS}
 endif
 
+ifeq (${devicename}, npu)
+	PATHVAR=${AIETOOLS_ROOT}/tps/lnx64/target_aie_ml/bin/LNa64bin
+else ifeq (${devicename}, npu2)
+	PATHVAR=${AIETOOLS_ROOT}/tps/lnx64/target_aie2p/bin/LNa64bin
+endif
+
 #all: build/final.xclbin build/insts.bin
 all: build/final.xclbin ${targetname}.exe
 
@@ -40,8 +46,7 @@ build/vector_operators.o: ${srcdir}/vector_operators.cc
 
 build/final.xclbin: build/aie.mlir build/vector_operators.o
 	mkdir -p ${@D}
-	#cd ${@D}  &&  PATH=${AIETOOLS_ROOT}/tps/lnx64/target_aie_ml/bin/LNa64bin:$$PATH \
-    cd ${@D}  \
+	cd ${@D}  &&  PATH=${PATHVAR}:$$PATH \
 		  &&  aiecc.py  --aie-generate-xclbin --no-compile-host --xclbin-name=${@F} \
 				--xchesscc --xbridge \
 				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
