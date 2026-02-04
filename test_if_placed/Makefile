@@ -14,25 +14,6 @@ build/aie.mlir: ${srcdir}/aie2.py
 
 
 
-
-#build/vector_operators.o: ${srcdir}/vector_operators.cc
-#	mkdir -p ${@D}
-#	cd ${@D} && xchesscc \
-#		-f \
-#		-p me \
-#		-P $(AIETOOLS_ROOT)/data/aie_ml/lib \
-#		-I $(AIETOOLS_ROOT)/include \
-#		-c $(abspath $<) \
-#		-o $(notdir $@)
-
-#build/final.xclbin: build/aie.mlir build/vector_operators.o
-#	mkdir -p ${@D}
-#	cd ${@D} && aiecc.py --aie-generate-xclbin --dynamic-objFifos --no-compile-host --xclbin-name=${@F} \
-#				--xchesscc --xbridge -v \
-#				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
-
-
-
 build/vector_operators.o: ${srcdir}/vector_operators.cc
 	mkdir -p ${@D}
 ifeq ($(devicename),npu)
@@ -63,8 +44,7 @@ endif
 
 run: ${targetname}.exe build/final.xclbin
 	${powershell} ./$< --verbosity=0 --iters=3 --warmup=1 --trace_sz=8192 --trace_file=trace.txt -x build/final.xclbin -i build/insts.bin -k MLIR_AIE
-	#${srcdir}/../python/utils/parse_trace.py --input trace.txt --mlir build/aie.mlir --output trace.json
-	#${srcdir}/../python/utils/get_trace_summary.py --input trace.json
+
 
 clean: 
 	rm -rf build _build ${targetname}.exe

@@ -31,7 +31,7 @@ int main(int argc, const char *argv[]) {
 
   // Declaring design constants
   constexpr bool VERIFY = true;
-  constexpr int IN_SIZE = 64;
+  constexpr int IN_SIZE = 1024;
   constexpr int OUT_SIZE = IN_SIZE;
 
   // Load instruction sequence
@@ -108,7 +108,13 @@ int main(int argc, const char *argv[]) {
     unsigned int opcode = 3;
     auto run =
         kernel(opcode, bo_instr, instr_v.size(), bo_inA, bo_outC, bo_outOdd, 0, bo_trace);
-    run.wait();
+
+
+    ert_cmd_state r = run.wait();
+    if(r != ERT_CMD_STATE_COMPLETED){
+        std::cout << "Something is wrong: " << r<<"\n";
+    }
+
 	bo_trace.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     auto stop = std::chrono::high_resolution_clock::now();
 
@@ -117,9 +123,7 @@ int main(int argc, const char *argv[]) {
     bo_outOdd.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     // Accumulate run times
     /* Warmup iterations do not count towards average runtime. */
-    if (iter < n_warmup_iterations) {
-      continue;
-    }
+
     float npu_time =
         std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
             .count();
