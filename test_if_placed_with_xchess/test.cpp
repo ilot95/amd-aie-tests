@@ -31,7 +31,7 @@ int main(int argc, const char *argv[]) {
 
   // Declaring design constants
   constexpr bool VERIFY = true;
-  constexpr int IN_SIZE = 64;
+  constexpr int IN_SIZE = 4096;
   constexpr int OUT_SIZE = IN_SIZE;
 
   // Load instruction sequence
