@@ -7,6 +7,9 @@ import aie.utils.trace as trace_utils
 from aie.dialects.aie import *
 from aie.dialects.aiex import *
 from aie.iron.controlflow import range_
+
+from aie.helpers.dialects.scf import if_,else_
+
 from aie.extras.context import mlir_mod_ctx
 from setuptools.archive_util import extraction_drivers
 
@@ -76,9 +79,24 @@ def external_mem_to_core():
                 for _ in range_(16):
                     elem_in = of_02_12.acquire(ObjectFifoPort.Consume, 1)
                     elem_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+
+                    with if_(elem_in[0] % 2 == 0, hasElse=True) as if_op:
+                        # pass
+
+                        elem_out[0] = elem_in[0]
+
+                    with else_(if_op):
+                        elem_out[0] = elem_in[0]
+
                     call(vector_plus_one, [elem_in, elem_out, 256])
+
+
+
                     of_02_12.release(ObjectFifoPort.Consume, 1)
                     of_out1.release(ObjectFifoPort.Produce, 1)
+
+
+
 
             # To/from AIE-array data movement
             data_ty = np.ndarray[(4096,), np.dtype[np.int32]]

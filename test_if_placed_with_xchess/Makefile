@@ -6,6 +6,13 @@ include ${srcdir}/../makefile-common
 targetname = main
 devicename ?= $(if $(filter 1,$(NPU2)),npu2,npu)
 
+KERNEL_CC=xchesscc_wrapper
+ifeq (${devicename}, npu)
+KERNEL_CFLAGS=${CHESSCCWRAP2_FLAGS}
+else ifeq (${devicename}, npu2)
+KERNEL_CFLAGS=${CHESSCCWRAP2P_FLAGS}
+endif
+
 #all: build/final.xclbin build/insts.bin
 all: build/final.xclbin ${targetname}.exe
 
@@ -17,19 +24,24 @@ build/aie.mlir: ${srcdir}/aie2.py
 	mkdir -p ${@D}
 	python3 $< ${devicename} > $@
 
+#build/vector_operators.o: ${srcdir}/vector_operators.cc
+#	mkdir -p ${@D}
+#	cd ${@D} && xchesscc_wrapper \
+#		-f \
+#		-p me \
+#		-P $(AIETOOLS_ROOT)/data/aie_ml/lib \
+#		-I $(AIETOOLS_ROOT)/include \
+#		-c $(abspath $<) \
+#		-o $(notdir $@)
+
 build/vector_operators.o: ${srcdir}/vector_operators.cc
 	mkdir -p ${@D}
-	cd ${@D} && xchesscc \
-		-f \
-		-p me \
-		-P $(AIETOOLS_ROOT)/data/aie_ml/lib \
-		-I $(AIETOOLS_ROOT)/include \
-		-c $(abspath $<) \
-		-o $(notdir $@)
+	cd ${@D} && ${KERNEL_CC} ${KERNEL_CFLAGS} ${KERNEL_DEFINES} -c $< -o ${@F}
 
 build/final.xclbin: build/aie.mlir build/vector_operators.o
 	mkdir -p ${@D}
-	cd ${@D}  &&  PATH=${AIETOOLS_ROOT}/tps/lnx64/target_aie_ml/bin/LNa64bin:$$PATH \
+	#cd ${@D}  &&  PATH=${AIETOOLS_ROOT}/tps/lnx64/target_aie_ml/bin/LNa64bin:$$PATH \
+    cd ${@D}  \
 		  &&  aiecc.py  --aie-generate-xclbin --no-compile-host --xclbin-name=${@F} \
 				--xchesscc --xbridge \
 				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
@@ -56,4 +68,4 @@ clean:
 #	aiecc.py -j4 $(AIECC_FLAGS) $(word 2,$^) $(AIECC_HOST_FLAGS) ./$< -o $@
 
 run: ${targetname}.exe build/final.xclbin
-	${powershell} ./$< --verbosity=0 --iters=10 --warmup=3 -x build/final.xclbin -i build/insts.bin -k MLIR_AIE
+	${powershell} ./$< --verbosity=0 --iters=2 --warmup=1 -x build/final.xclbin -i build/insts.bin -k MLIR_AIE
