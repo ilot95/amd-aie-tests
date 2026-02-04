@@ -109,7 +109,7 @@ int main(int argc, const char *argv[]) {
   //run.set_arg(7,bo_trace);
 
 
-  for (unsigned iter = 0; iter < num_iter; iter++) {
+  for (int iter = 0; iter < num_iter; iter++) {
 
       std::cout << "Running Kernel.\n";
 
@@ -118,7 +118,7 @@ int main(int argc, const char *argv[]) {
     /*auto run =
         kernel(opcode, bo_instr, instr_v.size(), bo_inA, bo_outC, bo_outOdd, 0, bo_trace);*/
     run.start();
-    //run.wait2();
+
 
     ert_cmd_state r = run.wait();
     if(r != ERT_CMD_STATE_COMPLETED){
@@ -160,10 +160,28 @@ int main(int argc, const char *argv[]) {
     }
     std::cout << std::endl;
 
-    /*for (int i = 0; i < IN_SIZE; i++)
-    bufInA[i] = iter;
-    bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);*/
-    bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+    std::cout << "iter: " << iter <<"\n";
+      for (int i = 0; i < IN_SIZE; i++)
+        bufInA[i] = i +iter;
+
+      // Zero out buffer bo_outC
+
+      memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+
+
+      memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
+
+
+
+
+
+      // sync host to device memories
+      //needed ?
+       //bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
   }
 
   // print out profiling result
