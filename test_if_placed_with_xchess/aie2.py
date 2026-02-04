@@ -86,15 +86,16 @@ def external_mem_to_core():
                         elem_in = of_02_12.acquire(ObjectFifoPort.Consume, 1)
                         elem_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
-                        with if_(elem_in[0] % 2 == 0, hasElse=True) as if_op:
-                            # pass
+                        call(vector_plus_one, [elem_in, elem_out, tile_ty_size])
+                        with if_(elem_out[0] % 2 == 0, hasElse=True) as if_op:
 
-                            elem_out[0] = elem_in[0]
+
+                            elem_out[0] = elem_out[0]
 
                         with else_(if_op):
-                            elem_out[0] = elem_in[0]
+                            elem_out[0] = 0
 
-                        call(vector_plus_one, [elem_in, elem_out, tile_ty_size])
+
 
 
 
