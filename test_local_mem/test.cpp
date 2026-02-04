@@ -100,7 +100,7 @@ int main(int argc, const char *argv[]) {
   float npu_time_total = 0;
   float npu_time_min = 9999999;
   float npu_time_max = 0;
-  for (unsigned iter = 0; iter < num_iter; iter++) {
+  for (int iter = 0; iter < num_iter; iter++) {
     if (verbosity >= 1)
       std::cout << "Running Kernel.\n";
 
@@ -149,6 +149,7 @@ int main(int argc, const char *argv[]) {
       int32_t test = bufOutOdd[i];
       std::cout << test << " ";
     }
+    std::cout << std::endl;
     //Todo veryfy
     /*
     std::cout << std::endl;
@@ -164,9 +165,9 @@ int main(int argc, const char *argv[]) {
           std::cout << "Correct output " << test << " == " << ref << std::endl;
       }
     }*/
-
+   std::cout << "iter: " << iter <<"\n";
   for (int i = 0; i < IN_SIZE; i++)
-    bufInA[i] = i;
+    bufInA[i] = i +iter;
 
   // Zero out buffer bo_outC
 
@@ -180,7 +181,8 @@ int main(int argc, const char *argv[]) {
   memset(bufTrace, 0, trace_size);
 
   // sync host to device memories
-
+  //needed ?
+   //bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);

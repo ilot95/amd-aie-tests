@@ -96,6 +96,8 @@ def external_mem_to_core():
 
 
                 for _ in range_(0xFFFFFFFF):
+                    #comment this if you want to preserver the local mem
+                    #might be a racecondion
                     cnt_even[0] = 0
                     cnt_odd[0] = 0
                     for i in range_(iters):
@@ -105,7 +107,6 @@ def external_mem_to_core():
                             cnt_even[0] = cnt_even[0] +1
                         with else_(if_op):
                             odd_buffer[cnt_odd[0]] = elem_in[0]
-                            cnt_odd[0] = cnt_odd[0]
                             cnt_odd[0] = cnt_odd[0] +1
                         of_in1.release(ObjectFifoPort.Consume, 1)
                     for i in range_(iters):
@@ -139,12 +140,12 @@ def external_mem_to_core():
                 #        trace_size=trace_size,
                 #    )
                 npu_dma_memcpy_nd(
-                    metadata=of_in, bd_id=1, mem=inTensor, sizes=[1, 1, 1, elements]
+                    metadata=of_in, bd_id=0, mem=inTensor, sizes=[1, 1, 1, elements]
                 )
 
 
                 npu_dma_memcpy_nd(
-                    metadata=of_out_odd, bd_id=0, mem=outOddTensor, sizes=[1, 1, 1, elements],issue_token=True
+                    metadata=of_out_odd, bd_id=1, mem=outOddTensor, sizes=[1, 1, 1, elements],issue_token=True
                 )
 
                 npu_dma_memcpy_nd(
