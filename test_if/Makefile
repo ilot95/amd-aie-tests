@@ -39,19 +39,9 @@ build/final_${data_size}.xclbin: build/aie.mlir
 		--no-xchesscc --no-xbridge \
 		--xclbin-name=${@F} --npu-insts-name=insts_${data_size}.bin $(<:%=../%)
 
-${targetname}_${data_size}.exe: ${srcdir}/test.cpp
-	rm -rf _build
-	mkdir -p _build
-	cd _build && ${powershell} cmake `${getwslpath} ${srcdir}` -DTARGET_NAME=${targetname} -DPASSTHROUGH_SIZE=${data_size}
-	cd _build && ${powershell} cmake --build . --config Release
-ifeq "${powershell}" "powershell.exe"
-	cp _build/${targetname}.exe $@
-else
-	cp _build/${targetname} $@
-endif
 
-run: ${targetname}_${data_size}.exe build/final_${data_size}.xclbin build/insts_${data_size}.bin
-	${powershell} ./$< -x build/final_${data_size}.xclbin -i build/insts_${data_size}.bin -k MLIR_AIE
+
+
 
 run_py: build/final_${data_size}.xclbin build/insts_${data_size}.bin
 	${powershell} python3 ${srcdir}/test.py -s ${data_size} -x build/final_${data_size}.xclbin -i build/insts_${data_size}.bin -k MLIR_AIE
@@ -59,10 +49,3 @@ run_py: build/final_${data_size}.xclbin build/insts_${data_size}.bin
 clean:
 	rm -rf build _build ${targetname}*.exe
 
-run_notebook: ${srcdir}/passthrough_pykernel.ipynb
-	mkdir -p notebook_build
-	cd notebook_build && jupyter nbconvert --to script ${srcdir}/passthrough_pykernel.ipynb --output-dir .
-	cd notebook_build && ipython passthrough_pykernel.py
-
-clean_notebook:
-	rm -rf notebook_build notebook_aie.mlir
