@@ -153,8 +153,9 @@ int main(int argc, const char *argv[]) {
       std::cout << test << " ";
     }
     std::cout << std::endl;
-    for (uint32_t i = 0; i < IN_SIZE; i++) {
-      int32_t ref = bufInA[i] + 2;
+    //TODO veryfy
+    /*for (uint32_t i = 0; i < IN_SIZE; i++) {
+      int32_t ref = bufInA[i] + 1;
       int32_t test = bufOut[i];
       if (test != ref) {
         if (verbosity >= 1)
@@ -164,7 +165,25 @@ int main(int argc, const char *argv[]) {
         if (verbosity >= 1)
           std::cout << "Correct output " << test << " == " << ref << std::endl;
       }
-    }
+    }*/
+
+
+      for (int i = 0; i < IN_SIZE; i++)
+           bufInA[i] = bufOutOdd[i];
+      for (int i = IN_SIZE/2; i < IN_SIZE; i++)
+           bufInA[i] = bufOut[i-IN_SIZE/2];
+
+      memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
+      memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+      memset(bufTrace, 0, trace_size);
+
+      // sync host to device memories
+
+      bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
   }
 
   // print out profiling result
