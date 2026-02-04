@@ -95,25 +95,28 @@ def external_mem_to_core():
                 #c= constant(0,index=True)
 
 
-                for i in range_(iters):
-                    elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
-                    with if_(elem_in[0] % 2 == 0, hasElse=True) as if_op:
-                        even_buffer[cnt_even[0]] = elem_in[0]
-                        cnt_even[0] = cnt_even[0] +1
-                    with else_(if_op):
-                        odd_buffer[cnt_odd[0]] = elem_in[0]
-                        cnt_odd[0] = cnt_odd[0]
-                        cnt_odd[0] = cnt_odd[0] +1
-                    of_in1.release(ObjectFifoPort.Consume, 1)
-                for i in range_(iters):
+                for _ in range_(0xFFFFFFFF):
+                    cnt_even[0] = 0
+                    cnt_odd[0] = 0
+                    for i in range_(iters):
+                        elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
+                        with if_(elem_in[0] % 2 == 0, hasElse=True) as if_op:
+                            even_buffer[cnt_even[0]] = elem_in[0]
+                            cnt_even[0] = cnt_even[0] +1
+                        with else_(if_op):
+                            odd_buffer[cnt_odd[0]] = elem_in[0]
+                            cnt_odd[0] = cnt_odd[0]
+                            cnt_odd[0] = cnt_odd[0] +1
+                        of_in1.release(ObjectFifoPort.Consume, 1)
+                    for i in range_(iters):
 
-                    elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                    elemOut_even[0] = even_buffer[i]
-                    of_out1.release(ObjectFifoPort.Produce, 1)
+                        elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                        elemOut_even[0] = even_buffer[i]
+                        of_out1.release(ObjectFifoPort.Produce, 1)
 
-                    elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
-                    elemOut_odd[0] = odd_buffer[i]
-                    of_out1_odd.release(ObjectFifoPort.Produce, 1)
+                        elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
+                        elemOut_odd[0] = odd_buffer[i]
+                        of_out1_odd.release(ObjectFifoPort.Produce, 1)
 
 
 
@@ -141,14 +144,14 @@ def external_mem_to_core():
 
 
                 npu_dma_memcpy_nd(
-                    metadata=of_out_odd, bd_id=0, mem=outOddTensor, sizes=[1, 1, 1, elements]
+                    metadata=of_out_odd, bd_id=0, mem=outOddTensor, sizes=[1, 1, 1, elements],issue_token=True
                 )
 
                 npu_dma_memcpy_nd(
-                    metadata=of_out, bd_id=2, mem=outTensor, sizes=[1, 1, 1, elements]
+                    metadata=of_out, bd_id=2, mem=outTensor, sizes=[1, 1, 1, elements],issue_token=True
                 )
                 # of_out will only complete after of_in completes, so we can just wait on of_out instead of both
-                dma_wait(of_out)
+                dma_wait(of_out,of_out_odd)
                 #trace_utils.gen_trace_done_aie2(ShimTile20)
 
     res = ctx.module.operation.verify()

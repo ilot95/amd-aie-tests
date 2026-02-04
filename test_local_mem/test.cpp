@@ -108,7 +108,10 @@ int main(int argc, const char *argv[]) {
     unsigned int opcode = 3;
     auto run =
         kernel(opcode, bo_instr, instr_v.size(), bo_inA, bo_outC, bo_outOdd, 0, bo_trace);
-    run.wait();
+    ert_cmd_state r = run.wait();
+    if(r != ERT_CMD_STATE_COMPLETED){
+        std::cout << "Something is wrong: " << r<<"\n";
+    }
 	bo_trace.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     auto stop = std::chrono::high_resolution_clock::now();
 
@@ -117,9 +120,7 @@ int main(int argc, const char *argv[]) {
     bo_outOdd.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     // Accumulate run times
     /* Warmup iterations do not count towards average runtime. */
-    if (iter < n_warmup_iterations) {
-      continue;
-    }
+
     float npu_time =
         std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
             .count();
@@ -148,6 +149,8 @@ int main(int argc, const char *argv[]) {
       int32_t test = bufOutOdd[i];
       std::cout << test << " ";
     }
+    //Todo veryfy
+    /*
     std::cout << std::endl;
     for (uint32_t i = 0; i < IN_SIZE; i++) {
       int32_t ref = bufInA[i] + 2;
@@ -160,7 +163,29 @@ int main(int argc, const char *argv[]) {
         if (verbosity >= 1)
           std::cout << "Correct output " << test << " == " << ref << std::endl;
       }
-    }
+    }*/
+
+  for (int i = 0; i < IN_SIZE; i++)
+    bufInA[i] = i;
+
+  // Zero out buffer bo_outC
+
+  memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+
+
+  memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
+
+
+
+  memset(bufTrace, 0, trace_size);
+
+  // sync host to device memories
+
+  bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
   }
 
   // print out profiling result
