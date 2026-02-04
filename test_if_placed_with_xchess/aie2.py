@@ -26,8 +26,12 @@ def external_mem_to_core():
 
         @device(dev)
         def device_body():
-            tile_ty = np.ndarray[(256,), np.dtype[np.int32]]
-            trace_size = 8192
+            elements = 4096
+            tile_ty_size = 1
+            tile_ty = np.ndarray[(tile_ty_size,), np.dtype[np.int32]]
+
+            iters = elements // tile_ty_size
+            #trace_size = 8192
 
             # External, binary kernel definition
             vector_plus_one = external_func(
@@ -63,12 +67,13 @@ def external_mem_to_core():
             @core(ComputeTile02, "vector_operators.o")
             def core_body_02():
                 # Effective while(1)
-                for _ in range_(16):
-                    elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
-                    elem_out = of_02_12.acquire(ObjectFifoPort.Produce, 1)
-                    call(vector_plus_one, [elem_in, elem_out, 256])
-                    of_in1.release(ObjectFifoPort.Consume, 1)
-                    of_02_12.release(ObjectFifoPort.Produce, 1)
+                for _ in range_(0xFFFFFFFF):
+                    for _ in range_(iters):
+                        elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
+                        elem_out = of_02_12.acquire(ObjectFifoPort.Produce, 1)
+                        call(vector_plus_one, [elem_in, elem_out, tile_ty_size])
+                        of_in1.release(ObjectFifoPort.Consume, 1)
+                        of_02_12.release(ObjectFifoPort.Produce, 1)
 
             # To/from AIE-array data movement
             data_ty = np.ndarray[(4096,), np.dtype[np.int32]]
@@ -76,24 +81,25 @@ def external_mem_to_core():
             @core(ComputeTile12, "vector_operators.o")
             def core_body_12():
                 # Effective while(1)
-                for _ in range_(16):
-                    elem_in = of_02_12.acquire(ObjectFifoPort.Consume, 1)
-                    elem_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                for _ in range_(0xFFFFFFFF):
+                    for _ in range_(iters):
+                        elem_in = of_02_12.acquire(ObjectFifoPort.Consume, 1)
+                        elem_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
-                    with if_(elem_in[0] % 2 == 0, hasElse=True) as if_op:
-                        # pass
+                        with if_(elem_in[0] % 2 == 0, hasElse=True) as if_op:
+                            # pass
 
-                        elem_out[0] = elem_in[0]
+                            elem_out[0] = elem_in[0]
 
-                    with else_(if_op):
-                        elem_out[0] = elem_in[0]
+                        with else_(if_op):
+                            elem_out[0] = elem_in[0]
 
-                    call(vector_plus_one, [elem_in, elem_out, 256])
+                        call(vector_plus_one, [elem_in, elem_out, tile_ty_size])
 
 
 
-                    of_02_12.release(ObjectFifoPort.Consume, 1)
-                    of_out1.release(ObjectFifoPort.Produce, 1)
+                        of_02_12.release(ObjectFifoPort.Consume, 1)
+                        of_out1.release(ObjectFifoPort.Produce, 1)
 
 
 
@@ -101,27 +107,27 @@ def external_mem_to_core():
             # To/from AIE-array data movement
             data_ty = np.ndarray[(4096,), np.dtype[np.int32]]
 
-            tiles_to_trace = [ComputeTile02, MemTile01, ShimTile00]
-            if trace_size > 0:
-                trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
+            #tiles_to_trace = [ComputeTile02, MemTile01, ShimTile00]
+            #if trace_size > 0:
+            #    trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
 
             @runtime_sequence(data_ty, data_ty)
             def sequence(inTensor, outTensor):
-                if trace_size > 0:
-                    trace_utils.configure_packet_tracing_aie2(
-                        tiles_to_trace=tiles_to_trace,
-                        shim=ShimTile20,
-                        trace_size=trace_size,
-                    )
+                #if trace_size > 0:
+                #    trace_utils.configure_packet_tracing_aie2(
+                #        tiles_to_trace=tiles_to_trace,
+                #        shim=ShimTile20,
+                #        trace_size=trace_size,
+                #    )
                 npu_dma_memcpy_nd(
                     metadata=of_in, bd_id=1, mem=inTensor, sizes=[1, 1, 1, 4096]
                 )
                 npu_dma_memcpy_nd(
-                    metadata=of_out, bd_id=0, mem=outTensor, sizes=[1, 1, 1, 4096]
+                    metadata=of_out, bd_id=0, mem=outTensor, sizes=[1, 1, 1, 4096],issue_token=True
                 )
                 # of_out will only complete after of_in completes, so we can just wait on of_out instead of both
                 dma_wait(of_out)
-                trace_utils.gen_trace_done_aie2(ShimTile20)
+                #trace_utils.gen_trace_done_aie2(ShimTile20)
 
     res = ctx.module.operation.verify()
     if res == True:

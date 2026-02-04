@@ -55,13 +55,10 @@ int main(int argc, const char *argv[]) {
   auto bo_inA = xrt::bo(device, IN_SIZE * sizeof(DATATYPE),
                         XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(3));
 
-  auto bo_outOdd = xrt::bo(device, OUT_SIZE * sizeof(DATATYPE),
-                         XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(4));
-  auto bo_outC = xrt::bo(device, OUT_SIZE * sizeof(DATATYPE),
-                         XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(5));
+  //auto bo_outOdd = xrt::bo(device, OUT_SIZE * sizeof(DATATYPE),XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(5));
+  auto bo_outC = xrt::bo(device, OUT_SIZE * sizeof(DATATYPE),XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(4));
   int tmp_trace_size = (trace_size > 0) ? trace_size * 4 : 1;
-  auto bo_trace = xrt::bo(device, tmp_trace_size,
-						XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(7));
+  //auto bo_trace = xrt::bo(device, tmp_trace_size,XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(7));
 
   if (verbosity >= 1)
     std::cout << "Writing data into buffer objects.\n";
@@ -79,20 +76,20 @@ int main(int argc, const char *argv[]) {
   DATATYPE *bufOut = bo_outC.map<DATATYPE *>();
   memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
 
-  DATATYPE *bufOutOdd = bo_outOdd.map<DATATYPE *>();
-  memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
+  /*DATATYPE *bufOutOdd = bo_outOdd.map<DATATYPE *>();
+  memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));*/
 
 
   // Initialize buffer bo_trace
-  char *bufTrace = bo_trace.map<char *>();
-  memset(bufTrace, 0, trace_size);
+  /*char *bufTrace = bo_trace.map<char *>();
+  memset(bufTrace, 0, trace_size);*/
 
   // sync host to device memories
   bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-  bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-  bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  //bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  //bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
   // Execute the kernel and wait to finish
   int errors = 0;
@@ -100,26 +97,32 @@ int main(int argc, const char *argv[]) {
   float npu_time_total = 0;
   float npu_time_min = 9999999;
   float npu_time_max = 0;
-  for (unsigned iter = 0; iter < num_iter; iter++) {
+  for (int iter = 0; iter < num_iter; iter++) {
     if (verbosity >= 1)
       std::cout << "Running Kernel.\n";
 
     auto start = std::chrono::high_resolution_clock::now();
     unsigned int opcode = 3;
-    auto run =
+    /*auto run =
         kernel(opcode, bo_instr, instr_v.size(), bo_inA, bo_outC, bo_outOdd, 0, bo_trace);
-    run.wait();
-	bo_trace.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+    */
+    auto run =
+        kernel(opcode, bo_instr, instr_v.size(), bo_inA, bo_outC, 0, 0, 0);
+
+    ert_cmd_state r = run.wait();
+    if(r != ERT_CMD_STATE_COMPLETED){
+        std::cout << "Something is wrong: " << r<<"\n";
+    }
+
+	//bo_trace.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     auto stop = std::chrono::high_resolution_clock::now();
 
     // Sync device to host memories
     bo_outC.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
-    bo_outOdd.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+    //bo_outOdd.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     // Accumulate run times
     /* Warmup iterations do not count towards average runtime. */
-    if (iter < n_warmup_iterations) {
-      continue;
-    }
+
     float npu_time =
         std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
             .count();
@@ -131,9 +134,9 @@ int main(int argc, const char *argv[]) {
     npu_time_max = (npu_time > npu_time_max) ? npu_time : npu_time_max;
 
 	// only output the trace with the first formal iteration
-	if (trace_size > 0 && iter == n_warmup_iterations) {
+	/*if (trace_size > 0 && iter == n_warmup_iterations) {
 		test_utils::write_out_trace((char *)bufTrace, trace_size, trace_file);
-	}
+	}*/
 
     // Compare out to golden
     if (verbosity >= 1) {
@@ -143,11 +146,11 @@ int main(int argc, const char *argv[]) {
       int32_t test = bufOut[i];
       std::cout << test << " ";
     }
-    std::cout  << "\n";
+    /*std::cout  << "\n";
     for (uint32_t i = 0; i < IN_SIZE; i++) {
       int32_t test = bufOutOdd[i];
       std::cout << test << " ";
-    }
+    }*/
     std::cout << std::endl;
     for (uint32_t i = 0; i < IN_SIZE; i++) {
       int32_t ref = bufInA[i] + 2;
@@ -161,6 +164,20 @@ int main(int argc, const char *argv[]) {
           std::cout << "Correct output " << test << " == " << ref << std::endl;
       }
     }
+
+    // Initialize buffer bo_inA
+  for (int i = 0; i < IN_SIZE; i++)
+    bufInA[i] = bufOut[i];
+
+  // Zero out buffer bo_outC
+
+  memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+
+
+  bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
+
   }
 
   // print out profiling result
