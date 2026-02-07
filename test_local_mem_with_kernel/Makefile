@@ -7,9 +7,12 @@ all: build_peano/final.xclbin build_peano/insts.bin build_xchesscc/final.xclbin 
 targetname = vectorScalar
 devicename ?= $(if $(filter 1,$(NPU2)),npu2,npu)
 
+#todo make this settable
+trace_size = 8192
+
 build_mlir/aie.mlir: ${srcdir}/aie2.py
 	mkdir -p ${@D}
-	python3 $< ${devicename} > $@
+	python3 $< ${devicename}  ${trace_size}> $@
 	
 
 #select the right kernel flags depending if you have npu aka NPU Phoenix aka aie_ml aka aie2
@@ -80,5 +83,5 @@ run_xchesscc: ${targetname}.exe build_xchesscc/final.xclbin
 run_all: run_peano run_xchesscc
 
 clean: 
-	rm -rf build_peano host_build build_mlir build_xchesscc ${targetname}.exe
+	rm -rf build_peano host_build build_mlir build_xchesscc ${targetname}.exe trace.txt
 

@@ -7,18 +7,43 @@
 
 #include "cxxopts.hpp"
 #include "test_utils.h"
+
 #include "xrt/xrt_bo.h"
 #include "xrt/xrt_device.h"
+#include "xrt/xrt_hw_context.h"
 #include "xrt/xrt_kernel.h"
+
 
 #ifndef DATATYPES_USING_DEFINED
 #define DATATYPES_USING_DEFINED
 using DATATYPE = std::uint32_t;
 #endif
 
+
+
+uint32_t getParity(uint32_t n) {
+  int count = 0;
+  while (n > 0) {
+    if (n & 1) { // Check if the least significant bit is 1
+      count++;
+    }
+    n >>= 1; // Right shift to check the next bit
+  }
+  return (count % 2 == 0) ? 0 : 1; // 0 for even parity, 1 for odd parity
+}
+
+uint32_t create_ctrl_pkt(int operation, int beats, int addr,
+                         int ctrl_pkt_read_id = 28) {
+  uint32_t ctrl_pkt = ((ctrl_pkt_read_id & 0xFF) << 24) |
+                      ((operation & 0x3) << 22) | ((beats & 0x3) << 20) |
+                      (addr & 0x7FFFF);
+  ctrl_pkt |= (0x1 ^ getParity(ctrl_pkt)) << 31;
+  return ctrl_pkt;
+}
+
 int main(int argc, const char *argv[]) {
   // Program arguments parsing
-  cxxopts::Options options("section-3");
+  cxxopts::Options options("odd_even Kernel");
   test_utils::add_default_options(options);
 
   cxxopts::ParseResult vm;
@@ -33,6 +58,8 @@ int main(int argc, const char *argv[]) {
   constexpr bool VERIFY = true;
   constexpr int IN_SIZE = 64;
   constexpr int OUT_SIZE = IN_SIZE;
+  bool enable_ctrl_pkts = false;
+
 
   // Load instruction sequence
   std::vector<uint32_t> instr_v =
@@ -60,6 +87,19 @@ int main(int argc, const char *argv[]) {
   auto bo_outC = xrt::bo(device, OUT_SIZE * sizeof(DATATYPE),
                          XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(5));
 
+  // If we enable control packets, then this is the input xrt buffer for that.
+  // Otherwise, this is a dummy placedholder buffer.
+    //todo why do we need this?
+  auto bo_ctrlpkts =
+      xrt::bo(device, 8, XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(6));
+
+  // Workaround so we declare a really small trace buffer when one is not used
+  // Second workaround for driver issue. Allocate large trace buffer *4
+  // This includes the 8 bytes needed for control packet response.
+  //todo why 4*
+  int tmp_trace_size = (trace_size > 0) ? trace_size * 4 : 1;
+  auto bo_trace = xrt::bo(device, tmp_trace_size, XRT_BO_FLAGS_HOST_ONLY,
+                          kernel.group_id(7));
 
   if (verbosity >= 1)
     std::cout << "Writing data into buffer objects.\n";
@@ -80,14 +120,32 @@ int main(int argc, const char *argv[]) {
   DATATYPE *bufOutOdd = bo_outOdd.map<DATATYPE *>();
   memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
 
+  char *bufTrace = bo_trace.map<char *>();
+  uint32_t *bufCtrlPkts = bo_ctrlpkts.map<uint32_t *>();
 
 
+    // Set control packet values
+  if (trace_size > 0 && enable_ctrl_pkts) {
+    bufCtrlPkts[0] = create_ctrl_pkt(1, 0, 0x32004); // core status
+    bufCtrlPkts[1] = create_ctrl_pkt(1, 0, 0x320D8); // trace status
+    if (verbosity >= 1) {
+      std::cout << "bufCtrlPkts[0]:" << std::hex << bufCtrlPkts[0] << std::endl;
+      std::cout << "bufCtrlPkts[1]:" << std::hex << bufCtrlPkts[1] << std::endl;
+    }
+  }
 
   // sync host to device memories
   bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
+    if (trace_size > 0) {
+    bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+    if (enable_ctrl_pkts)
+      bo_ctrlpkts.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+  }
+
 
 
   // Execute the kernel and wait to finish
@@ -105,8 +163,9 @@ int main(int argc, const char *argv[]) {
   run.set_arg(3,bo_inA);
   run.set_arg(4,bo_outC);
   run.set_arg(5,bo_outOdd);
-  //run.set_arg(6,0);
-  //run.set_arg(7,bo_trace);
+  //not sure about this one
+  run.set_arg(6,bo_ctrlpkts);
+  run.set_arg(7,bo_trace);
 
 
   for (int iter = 0; iter < num_iter; iter++) {
@@ -130,6 +189,14 @@ int main(int argc, const char *argv[]) {
     // Sync device to host memories
     bo_outC.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
     bo_outOdd.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+    if (trace_size > 0)
+      bo_trace.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
+    //todo should tmp_trace_size be used here?
+    if (trace_size > 0 ) {
+      test_utils::write_out_trace(((char *)bufTrace), trace_size,
+                                  trace_file);
+    }
     // Accumulate run times
     /* Warmup iterations do not count towards average runtime. */
 

@@ -10,6 +10,11 @@ from aie.helpers.dialects.scf import _for as range_, if_, else_
 from aie.extras.context import mlir_mod_ctx
 from setuptools.archive_util import extraction_drivers
 
+#use stderr so the mlir output does not break
+#These are don't have to be errors
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
 if len(sys.argv) > 1:
     if sys.argv[1] == "npu":
         dev = AIEDevice.npu1
@@ -17,6 +22,15 @@ if len(sys.argv) > 1:
         dev = AIEDevice.npu2
     else:
         raise ValueError("[ERROR] Device name {} is unknown".format(sys.argv[1]))
+
+trace_size = 0
+if len(sys.argv) > 2:
+    if sys.argv[2].isdigit():
+        trace_size = int(sys.argv[2])
+        eprint("[INFO] trace_size: {}".format(trace_size))
+    else:
+        eprint("[Info] sys.argv[2] (trace_size):{} is not a positive number falling back to trace_size = 0".format(sys.argv[2]))
+
 
 def external_mem_to_core():
     with mlir_mod_ctx() as ctx:
@@ -42,11 +56,11 @@ def external_mem_to_core():
             # Tile declarations
             ShimTile00 = tile(0, 0)
             #ShimTile10 = tile(1, 0)
-            #ShimTile20 = tile(2, 0)
+            ShimTile20 = tile(2, 0)
             #MemTile01 = tile(0, 1)
             #MemTile11 = tile(1, 1)
             ComputeTile02 = tile(0, 2)
-            ComputeTile12 = tile(1, 2)
+            #ComputeTile12 = tile(1, 2)
 
             # AIE-array data movement with object fifos
             # Input
@@ -111,8 +125,10 @@ def external_mem_to_core():
                         of_out1_odd.release(ObjectFifoPort.Produce, 1)
                         of_out1.release(ObjectFifoPort.Produce, 1)
 
-
-
+            tiles_to_trace = [ComputeTile02, ShimTile00]
+            if trace_size > 0:
+                trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
+                #todo use other shimtile to trace?
 
 
 
@@ -126,7 +142,12 @@ def external_mem_to_core():
             @runtime_sequence(data_ty, data_ty,data_ty)
             def sequence(inTensor,outOddTensor, outTensor,):
 
-
+                if trace_size > 0:
+                    trace_utils.configure_packet_tracing_aie2( #todo is this method correct form every npu?
+                        tiles_to_trace=tiles_to_trace,
+                        shim=ShimTile20,
+                        trace_size=trace_size,
+                    )
                 # npu_dma_memcpy_nd(
                 #     metadata=of_in, bd_id=2, mem=inTensor, sizes=[1, 1, 1, elements],issue_token=True
                 # )
@@ -147,6 +168,9 @@ def external_mem_to_core():
 
                 dma_start_task(in_task, out_task,out_task1)
                 dma_await_task(out_task,out_task1)
+
+                trace_utils.gen_trace_done_aie2(ShimTile20)
+
                 dma_free_task(in_task)
 
 
