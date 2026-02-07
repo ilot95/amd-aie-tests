@@ -2,7 +2,7 @@ srcdir := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 include ${srcdir}/../makefile-common
 
-all: build/final.xclbin build/insts.bin
+all: build_peano/final.xclbin build_peano/insts.bin build_xchesscc/final.xclbin build_xchesscc/insts.bin
 
 targetname = vectorScalar
 devicename ?= $(if $(filter 1,$(NPU2)),npu2,npu)
@@ -29,21 +29,16 @@ else ifeq (${devicename}, npu2)
 endif
 
 
-#build/vector_operators.o: ${srcdir}/vector_operators.cc
-#	mkdir -p ${@D}
-#	cd ${@D} && xchesscc \
-#		-f \
-#		-p me \
-#		-P $(AIETOOLS_ROOT)/data/aie_ml/lib \
-#		-I $(AIETOOLS_ROOT)/include \
-#		-c $(abspath $<) \
-#		-o $(notdir $@)
+build_xchesscc/odd_even.o: ${srcdir}/odd_even.cc
+	mkdir -p ${@D}
+	cd ${@D} && ${KERNEL_CC} ${KERNEL_CFLAGS} ${KERNEL_DEFINES} -c $< -o ${@F}
 
-#build/final.xclbin: build/aie.mlir build/vector_operators.o
-#	mkdir -p ${@D}
-#	cd ${@D} && aiecc.py --aie-generate-xclbin --dynamic-objFifos --no-compile-host --xclbin-name=${@F} \
-#				--xchesscc --xbridge -v \
-#				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
+build_xchesscc/final.xclbin: build_mlir/aie.mlir build_xchesscc/odd_even.o
+	mkdir -p ${@D}
+	cd ${@D}  &&  PATH=${PATHVAR}:$$PATH \
+		  &&  aiecc.py  --aie-generate-xclbin --no-compile-host --xclbin-name=${@F} \
+				--xchesscc --xbridge \
+				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
 
 
 
@@ -76,6 +71,14 @@ run_peano: ${targetname}.exe build_peano/final.xclbin
 	#${srcdir}/../python/utils/parse_trace.py --input trace.txt --mlir build/aie.mlir --output trace.json
 	#${srcdir}/../python/utils/get_trace_summary.py --input trace.json
 
+run_xchesscc: ${targetname}.exe build_peano/final.xclbin
+	${powershell} ./$< --verbosity=0 --iters=3 --warmup=1 --trace_sz=8192 --trace_file=trace.txt -x build_xchesscc/final.xclbin -i build_xchesscc/insts.bin -k MLIR_AIE
+	#${srcdir}/../python/utils/parse_trace.py --input trace.txt --mlir build/aie.mlir --output trace.json
+	#${srcdir}/../python/utils/get_trace_summary.py --input trace.json
+
+
+run_all: run_peano run_xchesscc
+
 clean: 
-	rm -rf build_peano hosthost_build build_mlir ${targetname}.exe
+	rm -rf build_peano host_build build_mlir build_xchesscc ${targetname}.exe
 
