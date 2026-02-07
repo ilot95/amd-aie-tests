@@ -7,12 +7,26 @@ all: build/final.xclbin build/insts.bin
 targetname = vectorScalar
 devicename ?= $(if $(filter 1,$(NPU2)),npu2,npu)
 
-build/aie.mlir: ${srcdir}/aie2.py
+build_mlir/aie.mlir: ${srcdir}/aie2.py
 	mkdir -p ${@D}
 	python3 $< ${devicename} > $@
 	
 
+#select the right kernel flags depending if you have npu aka NPU Phoenix aka aie_ml aka aie2
+# or npu2 aka NPU Strix aka aie_2p ake aie2p
+KERNEL_CC=xchesscc_wrapper
+ifeq (${devicename}, npu)
+KERNEL_CFLAGS=${CHESSCCWRAP2_FLAGS}
+else ifeq (${devicename}, npu2)
+KERNEL_CFLAGS=${CHESSCCWRAP2P_FLAGS}
+endif
 
+#a hacky way to use the right xchesscc there might be a better way
+ifeq (${devicename}, npu)
+	PATHVAR=${AIETOOLS_ROOT}/tps/lnx64/target_aie_ml/bin/LNa64bin
+else ifeq (${devicename}, npu2)
+	PATHVAR=${AIETOOLS_ROOT}/tps/lnx64/target_aie2p/bin/LNa64bin
+endif
 
 
 #build/vector_operators.o: ${srcdir}/vector_operators.cc
@@ -33,7 +47,7 @@ build/aie.mlir: ${srcdir}/aie2.py
 
 
 
-build/odd_even.o: ${srcdir}/odd_even.cc
+build_peano/odd_even.o: ${srcdir}/odd_even.cc
 	mkdir -p ${@D}
 ifeq ($(devicename),npu)
 	cd ${@D} && ${PEANO_INSTALL_DIR}/bin/clang++ ${PEANOWRAP2_FLAGS} -c $< -o ${@F}
@@ -44,28 +58,24 @@ else
 endif
 
 #--dynamic-objFifos  --no-xchesscc  --no-xbridge    --xchesscc --xbridge -v
-build/final.xclbin: build/aie.mlir build/odd_even.o
+build_peano/final.xclbin: build_mlir/aie.mlir build_peano/odd_even.o
 	mkdir -p ${@D}
 	cd ${@D} && aiecc.py --aie-generate-xclbin --dynamic-objFifos --no-compile-host --xclbin-name=${@F} \
 				--no-xchesscc --no-xbridge  \
 				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
 
 ${targetname}.exe: ${srcdir}/test.cpp
-	rm -rf _build
-	mkdir -p _build
-	cd _build && ${powershell} cmake `${getwslpath} ${srcdir}` -DTARGET_NAME=${targetname}
-	cd _build && ${powershell} cmake --build . --config Release
-ifeq "${powershell}" "powershell.exe"
-	cp _build/${targetname}.exe $@
-else
-	cp _build/${targetname} $@ 
-endif 
+	rm -rf host_build
+	mkdir -p host_build
+	cd host_build && ${powershell} cmake `${getwslpath} ${srcdir}` -DTARGET_NAME=${targetname}
+	cd host_build && ${powershell} cmake --build . --config Release
+	cp host_build/${targetname} $@
 
-run: ${targetname}.exe build/final.xclbin
-	${powershell} ./$< --verbosity=0 --iters=3 --warmup=1 --trace_sz=8192 --trace_file=trace.txt -x build/final.xclbin -i build/insts.bin -k MLIR_AIE
+run_peano: ${targetname}.exe build_peano/final.xclbin
+	${powershell} ./$< --verbosity=0 --iters=3 --warmup=1 --trace_sz=8192 --trace_file=trace.txt -x build_peano/final.xclbin -i build_peano/insts.bin -k MLIR_AIE
 	#${srcdir}/../python/utils/parse_trace.py --input trace.txt --mlir build/aie.mlir --output trace.json
 	#${srcdir}/../python/utils/get_trace_summary.py --input trace.json
 
 clean: 
-	rm -rf build _build ${targetname}.exe
+	rm -rf build_peano hosthost_build build_mlir ${targetname}.exe
 
