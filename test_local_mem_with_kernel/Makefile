@@ -71,7 +71,7 @@ run_peano: ${targetname}.exe build_peano/final.xclbin
 	#${srcdir}/../python/utils/parse_trace.py --input trace.txt --mlir build/aie.mlir --output trace.json
 	#${srcdir}/../python/utils/get_trace_summary.py --input trace.json
 
-run_xchesscc: ${targetname}.exe build_peano/final.xclbin
+run_xchesscc: ${targetname}.exe build_xchesscc/final.xclbin
 	${powershell} ./$< --verbosity=0 --iters=3 --warmup=1 --trace_sz=8192 --trace_file=trace.txt -x build_xchesscc/final.xclbin -i build_xchesscc/insts.bin -k MLIR_AIE
 	#${srcdir}/../python/utils/parse_trace.py --input trace.txt --mlir build/aie.mlir --output trace.json
 	#${srcdir}/../python/utils/get_trace_summary.py --input trace.json
