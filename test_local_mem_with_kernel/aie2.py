@@ -37,15 +37,17 @@ def external_mem_to_core():
 
         @device(dev)
         def device_body():
-            elements = 64
-            tile_ty_size = 1
+            elements = 4096
+            tile_ty_size = 128
             iters = elements // tile_ty_size
 
 
             tile_ty = np.ndarray[(tile_ty_size,), np.dtype[np.int32]]
 
             buffer_ty = np.ndarray[(elements,), np.dtype[np.int32]]
-            #trace_size = 8192
+
+            data_ty = np.ndarray[(elements,), np.dtype[np.int32]]
+
 
             # External, binary kernel definition
             odd_even = external_func(
@@ -104,11 +106,23 @@ def external_mem_to_core():
             # Compute tile
             @core(ComputeTile02, "odd_even.o")
             def core_body_02():
+                # for _ in range_(0xFFFFFFFF):
+                #     for i in range_(iters):
+                #         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
+                #         elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                #         elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
+                #
+                #         #input_buffer[i] = elem_in[0]
+                #
+                #         of_in1.release(ObjectFifoPort.Consume, 1)
+                #         of_out1_odd.release(ObjectFifoPort.Produce, 1)
+                #         of_out1.release(ObjectFifoPort.Produce, 1)
+
                 for _ in range_(0xFFFFFFFF):
                     for i in range_(iters):
                         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
-
-                        input_buffer[i] = elem_in[0]
+                        for j in range_(tile_ty_size):
+                            input_buffer[i*tile_ty_size+j] = elem_in[j]
 
                         of_in1.release(ObjectFifoPort.Consume, 1)
 
@@ -119,8 +133,9 @@ def external_mem_to_core():
                         elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
                         elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
 
-                        elemOut_even[0] = even_buffer[i]
-                        elemOut_odd[0] = odd_buffer[i]
+                        for j in range_(tile_ty_size):
+                            elemOut_even[j] = even_buffer[i*tile_ty_size+j]
+                            elemOut_odd[j] = odd_buffer[i*tile_ty_size+j]
 
                         of_out1_odd.release(ObjectFifoPort.Produce, 1)
                         of_out1.release(ObjectFifoPort.Produce, 1)
@@ -133,7 +148,7 @@ def external_mem_to_core():
 
 
             # To/from AIE-array data movement
-            data_ty = np.ndarray[(elements,), np.dtype[np.int32]]
+            #d
 
             #tiles_to_trace = [ComputeTile02, MemTile01, ShimTile00]
             #if trace_size > 0:
@@ -171,7 +186,7 @@ def external_mem_to_core():
 
                 trace_utils.gen_trace_done_aie2(ShimTile20)
 
-                dma_free_task(in_task)
+                #dma_free_task(in_task)
 
 
 

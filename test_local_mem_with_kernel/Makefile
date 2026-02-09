@@ -10,6 +10,7 @@ devicename ?= $(if $(filter 1,$(NPU2)),npu2,npu)
 #todo make this settable
 trace_size = 8192
 
+
 build_mlir/aie.mlir: ${srcdir}/aie2.py
 	mkdir -p ${@D}
 	python3 $< ${devicename}  ${trace_size}> $@

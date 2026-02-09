@@ -56,7 +56,7 @@ int main(int argc, const char *argv[]) {
 
   // Declaring design constants
   constexpr bool VERIFY = true;
-  constexpr int IN_SIZE = 64;
+  constexpr int IN_SIZE = 4096;
   constexpr int OUT_SIZE = IN_SIZE;
   bool enable_ctrl_pkts = false;
 
@@ -97,7 +97,7 @@ int main(int argc, const char *argv[]) {
   // Second workaround for driver issue. Allocate large trace buffer *4
   // This includes the 8 bytes needed for control packet response.
   //todo why 4*
-  int tmp_trace_size = (trace_size > 0) ? trace_size * 4 : 1;
+  int tmp_trace_size = (trace_size > 0) ? trace_size *4 : 1;
   auto bo_trace = xrt::bo(device, tmp_trace_size, XRT_BO_FLAGS_HOST_ONLY,
                           kernel.group_id(7));
 
@@ -160,6 +160,7 @@ int main(int argc, const char *argv[]) {
   run.set_arg(0,opcode);
   run.set_arg(1,bo_instr);
   run.set_arg(2,instr_v.size());
+
   run.set_arg(3,bo_inA);
   run.set_arg(4,bo_outC);
   run.set_arg(5,bo_outOdd);
