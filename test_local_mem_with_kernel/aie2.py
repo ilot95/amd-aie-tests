@@ -186,7 +186,7 @@ def external_mem_to_core():
 
                 trace_utils.gen_trace_done_aie2(ShimTile20)
 
-                #dma_free_task(in_task)
+                dma_free_task(in_task)
 
 
 
