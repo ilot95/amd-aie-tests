@@ -161,6 +161,7 @@ def external_mem_to_core():
                     trace_utils.configure_packet_tracing_aie2( #todo is this method correct form every npu?
                         tiles_to_trace=tiles_to_trace,
                         shim=ShimTile20,
+                        ddr_id=4,# 4 -> group_id(7)
                         trace_size=trace_size,
                     )
                 # npu_dma_memcpy_nd(

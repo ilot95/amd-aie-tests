@@ -56,6 +56,7 @@ int main(int argc, const char *argv[]) {
 
   // Declaring design constants
   constexpr bool VERIFY = true;
+  constexpr bool PRINT_OUT_BUFFERS = false;
   constexpr int IN_SIZE = 4096;
   constexpr int OUT_SIZE = IN_SIZE;
   bool enable_ctrl_pkts = false;
@@ -97,7 +98,7 @@ int main(int argc, const char *argv[]) {
   // Second workaround for driver issue. Allocate large trace buffer *4
   // This includes the 8 bytes needed for control packet response.
   //todo why 4*
-  int tmp_trace_size = (trace_size > 0) ? trace_size *4 : 1;
+  int tmp_trace_size = (trace_size > 0) ? trace_size * 4  : 1;
   auto bo_trace = xrt::bo(device, tmp_trace_size, XRT_BO_FLAGS_HOST_ONLY,
                           kernel.group_id(7));
 
@@ -109,9 +110,12 @@ int main(int argc, const char *argv[]) {
   memcpy(bufInstr, instr_v.data(), instr_v.size() * sizeof(int));
 
   // Initialize buffer bo_inA
+
   DATATYPE *bufInA = bo_inA.map<DATATYPE *>();
-  for (int i = 0; i < IN_SIZE; i++)
-    bufInA[i] = i;
+  memset(bufInA, 0, IN_SIZE * sizeof(DATATYPE));
+  //this will happen later in the loop
+  /*for (int i = 0; i < IN_SIZE; i++)
+    bufInA[i] = i;*/
 
   // Zero out buffer bo_outC
   DATATYPE *bufOut = bo_outC.map<DATATYPE *>();
@@ -170,8 +174,29 @@ int main(int argc, const char *argv[]) {
 
 
   for (int iter = 0; iter < num_iter; iter++) {
+    //todo put back warmup iterrations
+     std::cout << "iter: " << iter <<"\n";
 
-      std::cout << "Running Kernel.\n";
+      if (verbosity >= 1) {
+      std::cout << "Setting inputs and zero out out buffers ..." << std::endl;
+    }
+
+
+      for (int i = 0; i < IN_SIZE; i++)
+        bufInA[i] = i + iter;
+
+      // Zero out buffer bo_outC
+      memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+      memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
+
+
+      //this should not be needed
+      //bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
+    std::cout << "Running Kernel.\n";
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -181,11 +206,12 @@ int main(int argc, const char *argv[]) {
 
 
     ert_cmd_state r = run.wait();
-    if(r != ERT_CMD_STATE_COMPLETED){
-        std::cout << "Something is wrong: " << r<<"\n";
-    }
 
     auto stop = std::chrono::high_resolution_clock::now();
+
+     if(r != ERT_CMD_STATE_COMPLETED){
+        std::cout << "run.wait() did not return ERT_CMD_STATE_COMPLETED: " << r<<"\n";
+    }
 
     // Sync device to host memories
     bo_outC.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
@@ -204,7 +230,7 @@ int main(int argc, const char *argv[]) {
     float npu_time =
         std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
             .count();
-    std::cout << std::endl
+    std::cout << ""
               << "NPU time: " << npu_time << "us."
               << std::endl;
     npu_time_total += npu_time;
@@ -213,42 +239,52 @@ int main(int argc, const char *argv[]) {
 
 
 
-    // Compare out to golden
-    if (verbosity >= 1) {
-      std::cout << "Verifying results ..." << std::endl;
-    }
-    for (uint32_t i = 0; i < IN_SIZE; i++) {
+     if (PRINT_OUT_BUFFERS >= 1) {
+      std::cout << "OutBuffers:" << std::endl;
+      std::cout << "Even:" << std::endl;
+      for (uint32_t i = 0; i < IN_SIZE; i++) {
       int32_t test = bufOut[i];
       std::cout << test << " ";
     }
     std::cout  << "\n";
+    std::cout << "Odd:" << std::endl;
     for (uint32_t i = 0; i < IN_SIZE; i++) {
       int32_t test = bufOutOdd[i];
       std::cout << test << " ";
     }
     std::cout << std::endl;
+    }
 
-    std::cout << "iter: " << iter <<"\n";
-      for (int i = 0; i < IN_SIZE; i++)
-        bufInA[i] = i +iter;
+    // Compare out to golden
 
-      // Zero out buffer bo_outC
+    if(VERIFY){
+        if (verbosity >= 1) {
+            std::cout << "Verifying results ..." << std::endl;
+        }
+        int cnt_odd = 0;
+        int cnt_even =0;
+        for (uint32_t i = 0; i < IN_SIZE; i++) {
+            if(bufInA[i] % 2 ==0){
+                if(!std::find(bufOut,bufOut+OUT_SIZE,bufInA[i])){
+                  errors ++;
+                }
+                cnt_even++;
+            }else{
+                if(!std::find(bufOutOdd,bufOutOdd+OUT_SIZE,bufInA[i])){
+                  errors ++;
+                }else{
+                }
+                cnt_odd++;
+            }
 
-      memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+        }
+         if (verbosity >= 1) {
+             std::cout << "cnt_odd: " << cnt_odd << " cnt_even: " << cnt_even << "\n";
+        }
+    }
 
 
-      memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
 
-
-
-
-
-      // sync host to device memories
-      //needed ?
-       //bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-      bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-      bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-      bo_outOdd.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
   }
 
