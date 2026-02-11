@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <set>
 
 #include "cxxopts.hpp"
 #include "test_utils.h"
@@ -57,7 +58,8 @@ int main(int argc, const char *argv[]) {
   // Declaring design constants
   constexpr bool VERIFY = true;
   constexpr bool PRINT_OUT_BUFFERS = false;
-  constexpr int IN_SIZE = 8192;
+  constexpr int oneMibibyteElements = 2*128*1024;
+  constexpr int IN_SIZE = oneMibibyteElements;
   constexpr int OUT_SIZE = IN_SIZE;
   bool enable_ctrl_pkts = false;
 
@@ -183,14 +185,16 @@ int main(int argc, const char *argv[]) {
 
 
       for (int i = 0; i < IN_SIZE; i++)
-        bufInA[i] = i + iter;
+        bufInA[i] = i + iter +1; //plus one for first iteration
 
       // Zero out buffer bo_outC
       memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
       memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
-      //zero out buffTrace each iteration???
-      memset(bufTrace,0,tmp_trace_size*sizeof(char));
-      bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      if (trace_size > 0 ) {
+          //zero out buffTrace each iteration???
+          memset(bufTrace,0,tmp_trace_size*sizeof(char));
+          bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+      }
       //this should not be needed
       //bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
       bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
@@ -262,26 +266,52 @@ int main(int argc, const char *argv[]) {
         if (verbosity >= 1) {
             std::cout << "Verifying results ..." << std::endl;
         }
+        int cnt_odd_in = 0;
+        int cnt_even_in = 0;
         int cnt_odd = 0;
         int cnt_even =0;
-        for (uint32_t i = 0; i < IN_SIZE; i++) {
-            if(bufInA[i] % 2 ==0){
-                if(!std::find(bufOut,bufOut+OUT_SIZE,bufInA[i])){
-                  errors ++;
+        bool QUICK_VERIFY = false;
+        if(QUICK_VERIFY){
+            for (uint32_t i = 0; i < OUT_SIZE; i++) {
+                if(bufOut[i] !=0 && bufOut[i] % 2 == 0 ){
+                    cnt_even++;
                 }
-                cnt_even++;
-            }else{
-                if(!std::find(bufOutOdd,bufOutOdd+OUT_SIZE,bufInA[i])){
-                  errors ++;
-                }else{
-                }
-                cnt_odd++;
             }
+            for (uint32_t i = 0; i < OUT_SIZE; i++) {
+                if(bufOutOdd[i] !=0 && bufOutOdd[i] % 2 == 1 ){
+                    cnt_odd++;
+                }
+            }
+        }else{
 
+
+
+
+            for (uint32_t i = 0; i < IN_SIZE; i++) {
+                if(bufInA[i] % 2 ==0){
+                    if(bufOut+OUT_SIZE == std::find(bufOut,bufOut+OUT_SIZE,bufInA[i])){
+                      errors ++;
+                    }else{
+                        cnt_even++;
+                    }
+                    cnt_even_in++;
+                }else{
+                    if(bufOutOdd+OUT_SIZE == std::find(bufOutOdd,bufOutOdd+OUT_SIZE,bufInA[i])){
+                      errors ++;
+                    }else{
+                        cnt_odd++;
+                    }
+                    cnt_odd_in++;
+
+                }
+
+            }
         }
-         if (verbosity >= 1) {
+         //if (verbosity >= 1) {
+            std::cout << "cnt_odd_in: " << cnt_odd_in << " cnt_even_in: " << cnt_even_in << "\n";
              std::cout << "cnt_odd: " << cnt_odd << " cnt_even: " << cnt_even << "\n";
-        }
+
+        //}
     }
 
 
