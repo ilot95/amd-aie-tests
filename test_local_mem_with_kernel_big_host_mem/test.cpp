@@ -270,18 +270,52 @@ int main(int argc, const char *argv[]) {
         int cnt_even_in = 0;
         int cnt_odd = 0;
         int cnt_even =0;
-        bool QUICK_VERIFY = false;
+        bool QUICK_VERIFY = true;
         if(QUICK_VERIFY){
+            auto oddSet = std::set<int>();
+            auto evenSet = std::set<int>();
             for (uint32_t i = 0; i < OUT_SIZE; i++) {
                 if(bufOut[i] !=0 && bufOut[i] % 2 == 0 ){
-                    cnt_even++;
+                    //cnt_even++;
+                    evenSet.insert(bufOut[i]);
+                }else{
+                    if(bufOut[i] !=0){
+                    std::cout << "this is wrong" << "\n";
+                    }
+
                 }
             }
             for (uint32_t i = 0; i < OUT_SIZE; i++) {
                 if(bufOutOdd[i] !=0 && bufOutOdd[i] % 2 == 1 ){
-                    cnt_odd++;
+                    //cnt_odd++;
+                    oddSet.insert(bufOutOdd[i]);
+                }else{
+                if(bufOut[i] !=0){
+                    std::cout << "this is wrong" << "\n";
+                    }
                 }
             }
+
+            for (uint32_t i = 0; i < IN_SIZE; i++) {
+                if(bufInA[i] % 2 ==0){
+                    if(!evenSet.contains(bufInA[i])){
+                      errors ++;
+                    }else{
+                        cnt_even++;
+                    }
+                    cnt_even_in++;
+                }else{
+                    if(!oddSet.contains(bufInA[i])){
+                      errors ++;
+                    }else{
+                        cnt_odd++;
+                    }
+                    cnt_odd_in++;
+
+                }
+
+            }
+
         }else{
 
 
