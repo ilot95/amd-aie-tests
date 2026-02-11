@@ -71,7 +71,7 @@ ${targetname}.exe: ${srcdir}/test.cpp
 	cp host_build/${targetname} $@
 
 run_peano: ${targetname}.exe build_peano/final.xclbin
-	${powershell} ./$< --verbosity=0 --iters=4 --warmup=0 --trace_sz=${trace_size} --trace_file=trace_peano.txt -x build_peano/final.xclbin -i build_peano/insts.bin -k MLIR_AIE
+	${powershell} ./$< --verbosity=0 --iters=30 --warmup=0 --trace_sz=${trace_size} --trace_file=trace_peano.txt -x build_peano/final.xclbin -i build_peano/insts.bin -k MLIR_AIE
     #hacky works if iron env is inside mlir-aie repo
 	${MLIR_AIE_DIR}/../../../../../python/utils/trace/parse.py --input trace_peano.txt --mlir build_mlir/aie.mlir --output trace_peano.json
 	${MLIR_AIE_DIR}/../../../../../python/utils/trace/get_trace_summary.py --input trace_peano.json

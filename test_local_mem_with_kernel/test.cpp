@@ -188,8 +188,9 @@ int main(int argc, const char *argv[]) {
       // Zero out buffer bo_outC
       memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
       memset(bufOutOdd, 0, OUT_SIZE * sizeof(DATATYPE));
-
-
+      //zero out buffTrace each iteration???
+      memset(bufTrace,0,tmp_trace_size*sizeof(char));
+      bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
       //this should not be needed
       //bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
       bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
