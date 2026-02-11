@@ -58,8 +58,10 @@ int main(int argc, const char *argv[]) {
   // Declaring design constants
   constexpr bool VERIFY = true;
   constexpr bool PRINT_OUT_BUFFERS = false;
-  constexpr int oneMibibyteElements = 2*128*1024;
-  constexpr int IN_SIZE = oneMibibyteElements;
+  constexpr int oneMBElements = 2*128*1024;
+  //not quite one GB 128MB otherwise timeout happens
+  constexpr int oneGBElements = 128 * oneMBElements;
+  constexpr int IN_SIZE = oneGBElements;
   constexpr int OUT_SIZE = IN_SIZE;
   bool enable_ctrl_pkts = false;
 
