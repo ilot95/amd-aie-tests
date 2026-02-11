@@ -37,7 +37,7 @@ def external_mem_to_core():
 
         @device(dev)
         def device_body():
-            host_elements = 128 * 2*128*1024
+            host_elements = 256 * 2*128*1024
 
             elements = 4096
 
