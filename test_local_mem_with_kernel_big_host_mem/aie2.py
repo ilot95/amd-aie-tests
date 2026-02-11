@@ -37,6 +37,8 @@ def external_mem_to_core():
 
         @device(dev)
         def device_body():
+            host_elements = 2*128*1024
+
             elements = 4096
 
             tile_ty_size = 128
@@ -47,7 +49,7 @@ def external_mem_to_core():
 
             buffer_ty = np.ndarray[(elements,), np.dtype[np.int32]]
 
-            data_ty = np.ndarray[(elements,), np.dtype[np.int32]]
+            data_ty = np.ndarray[(host_elements,), np.dtype[np.int32]]
 
 
             # External, binary kernel definition
@@ -175,12 +177,12 @@ def external_mem_to_core():
                 #     metadata=of_out, bd_id=0, mem=outTensor, sizes=[1, 1, 1, elements],issue_token=True
                 # )
                 # dma_wait(of_out,of_out_odd,of_in)
-                in_task = shim_dma_single_bd_task(of_in1, inTensor, sizes=[1, 1, 1, elements])
+                in_task = shim_dma_single_bd_task(of_in1, inTensor, sizes=[1, 1, 1, host_elements])
                 out_task = shim_dma_single_bd_task(
-                    of_out1_odd, outOddTensor, sizes=[1, 1, 1, elements], issue_token=True
+                    of_out1_odd, outOddTensor, sizes=[1, 1, 1, host_elements], issue_token=True
                 )
                 out_task1 = shim_dma_single_bd_task(
-                    of_out1, outTensor, sizes=[1, 1, 1, elements], issue_token=True
+                    of_out1, outTensor, sizes=[1, 1, 1, host_elements], issue_token=True
                 )
 
                 dma_start_task(in_task, out_task,out_task1)
