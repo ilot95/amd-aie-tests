@@ -37,11 +37,17 @@ def external_mem_to_core():
 
         @device(dev)
         def device_body():
-            host_elements = 256 * 2*128*1024
+            host_elements = 4096 * 2*128*1024
+
+            transfers = 64
+
+            tranfer_size_elemnts = host_elements // transfers
+
+
 
             elements = 4096
 
-            tile_ty_size = 128
+            tile_ty_size = 512
             iters = elements // tile_ty_size
 
 
@@ -109,39 +115,42 @@ def external_mem_to_core():
             # Compute tile
             @core(ComputeTile02, "odd_even.o")
             def core_body_02():
+                for _ in range_(0xFFFFFFFF):
+                    for _ in range_(host_elements//elements):
+                        for i in range_(iters):
+                            elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
+                            elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                            elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
+
+                            for j in range_(tile_ty_size):
+                              elemOut_even[j] = elem_in[j]
+                              elemOut_odd[j] = elem_in[j]
+
+                            of_in1.release(ObjectFifoPort.Consume, 1)
+                            of_out1_odd.release(ObjectFifoPort.Produce, 1)
+                            of_out1.release(ObjectFifoPort.Produce, 1)
+
                 # for _ in range_(0xFFFFFFFF):
                 #     for i in range_(iters):
                 #         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
+                #         for j in range_(tile_ty_size):
+                #             input_buffer[i*tile_ty_size+j] = elem_in[j]
+                #
+                #         of_in1.release(ObjectFifoPort.Consume, 1)
+                #
+                #     call(odd_even, [input_buffer, odd_buffer,even_buffer, elements])
+                #
+                #     for i in range_(iters):
+                #
                 #         elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
                 #         elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
                 #
-                #         #input_buffer[i] = elem_in[0]
+                #         for j in range_(tile_ty_size):
+                #             elemOut_even[j] = even_buffer[i*tile_ty_size+j]
+                #             elemOut_odd[j] = odd_buffer[i*tile_ty_size+j]
                 #
-                #         of_in1.release(ObjectFifoPort.Consume, 1)
                 #         of_out1_odd.release(ObjectFifoPort.Produce, 1)
                 #         of_out1.release(ObjectFifoPort.Produce, 1)
-
-                for _ in range_(0xFFFFFFFF):
-                    for i in range_(iters):
-                        elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
-                        for j in range_(tile_ty_size):
-                            input_buffer[i*tile_ty_size+j] = elem_in[j]
-
-                        of_in1.release(ObjectFifoPort.Consume, 1)
-
-                    call(odd_even, [input_buffer, odd_buffer,even_buffer, elements])
-
-                    for i in range_(iters):
-
-                        elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                        elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
-
-                        for j in range_(tile_ty_size):
-                            elemOut_even[j] = even_buffer[i*tile_ty_size+j]
-                            elemOut_odd[j] = odd_buffer[i*tile_ty_size+j]
-
-                        of_out1_odd.release(ObjectFifoPort.Produce, 1)
-                        of_out1.release(ObjectFifoPort.Produce, 1)
 
             tiles_to_trace = [ComputeTile02, ShimTile00]
             if trace_size > 0:
@@ -177,20 +186,23 @@ def external_mem_to_core():
                 #     metadata=of_out, bd_id=0, mem=outTensor, sizes=[1, 1, 1, elements],issue_token=True
                 # )
                 # dma_wait(of_out,of_out_odd,of_in)
-                in_task = shim_dma_single_bd_task(of_in1, inTensor, sizes=[1, 1, 1, host_elements])
-                out_task = shim_dma_single_bd_task(
-                    of_out1_odd, outOddTensor, sizes=[1, 1, 1, host_elements], issue_token=True
-                )
-                out_task1 = shim_dma_single_bd_task(
-                    of_out1, outTensor, sizes=[1, 1, 1, host_elements], issue_token=True
-                )
 
-                dma_start_task(in_task, out_task,out_task1)
-                dma_await_task(out_task,out_task1)
+                for i in range(transfers):
+                    in_task = shim_dma_single_bd_task(of_in1, inTensor, sizes=[1, 1, 1, tranfer_size_elemnts])
 
-                trace_utils.gen_trace_done_aie2(ShimTile20)
+                    out_task = shim_dma_single_bd_task(
+                        of_out1_odd, outOddTensor, sizes=[1, 1, 1, tranfer_size_elemnts], issue_token=True
+                    )
+                    out_task1 = shim_dma_single_bd_task(
+                        of_out1, outTensor, sizes=[1, 1, 1, tranfer_size_elemnts], issue_token=True
+                    )
 
-                dma_free_task(in_task)
+                    dma_start_task(in_task, out_task,out_task1)
+                    dma_await_task(out_task,out_task1)
+
+                    #trace_utils.gen_trace_done_aie2(ShimTile20)
+
+                    dma_free_task(in_task)
 
 
 

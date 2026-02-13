@@ -56,13 +56,13 @@ int main(int argc, const char *argv[]) {
   std::string trace_file = vm["trace_file"].as<std::string>();
 
   // Declaring design constants
-  constexpr bool VERIFY = true;
+  constexpr bool VERIFY = false;
   constexpr bool PRINT_OUT_BUFFERS = false;
-  constexpr int oneMBElements = 2*128*1024;
+  constexpr int64_t oneMBElements = 2*128*1024;
   //not quite one GB 128MB otherwise timeout happens
-  constexpr int oneGBElements = 256 * oneMBElements;
-  constexpr int IN_SIZE = oneGBElements;
-  constexpr int OUT_SIZE = IN_SIZE;
+  constexpr int64_t oneGBElements = 4096 * oneMBElements;
+  constexpr int64_t IN_SIZE = oneGBElements;
+  constexpr int64_t OUT_SIZE = IN_SIZE;
   bool enable_ctrl_pkts = false;
 
 
@@ -213,7 +213,7 @@ int main(int argc, const char *argv[]) {
 
 
     ert_cmd_state r = run.wait();
-
+    //run.wait2();
     auto stop = std::chrono::high_resolution_clock::now();
 
      if(r != ERT_CMD_STATE_COMPLETED){
