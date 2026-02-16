@@ -56,11 +56,11 @@ int main(int argc, const char *argv[]) {
   std::string trace_file = vm["trace_file"].as<std::string>();
 
   // Declaring design constants
-  constexpr bool VERIFY = false;
+  constexpr bool VERIFY = true;
   constexpr bool PRINT_OUT_BUFFERS = false;
   constexpr int64_t oneMBElements = 2*128*1024;
   //not quite one GB 128MB otherwise timeout happens
-  constexpr int64_t oneGBElements = 4096 * oneMBElements;
+  constexpr int64_t oneGBElements = 1024 * oneMBElements;
   constexpr int64_t IN_SIZE = oneGBElements;
   constexpr int64_t OUT_SIZE = IN_SIZE;
   bool enable_ctrl_pkts = false;
