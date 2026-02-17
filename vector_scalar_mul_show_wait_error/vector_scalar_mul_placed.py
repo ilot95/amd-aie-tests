@@ -75,7 +75,7 @@ def my_vector_scalar_mul(dev, in1_size, in2_size, out_size, int_bit_width, trace
                 for _ in range_(num_sub_vectors):
                     elem_out = of_out.acquire(ObjectFifoPort.Produce, 1)
                     elem_in = of_in.acquire(ObjectFifoPort.Consume, 1)
-                    for _ in range_(51):
+                    for _ in range_(400):
                         scale(elem_in, elem_out, elem_factor, tile_size)
                     of_in.release(ObjectFifoPort.Consume, 1)
                     of_out.release(ObjectFifoPort.Produce, 1)
