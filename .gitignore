@@ -2,3 +2,4 @@ build/
 _build/
 vectorScalar.exe
 trace.txt
+/vector_scalar_mul_show_wait_error/vector_scalar_mul_in1_size.exe

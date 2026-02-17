@@ -37,12 +37,13 @@ def external_mem_to_core():
 
         @device(dev)
         def device_body():
-            host_elements = 1024 * 2*128*1024
+            host_elements = 512 * 2*128*1024
 
             transfers = 64
 
             tranfer_size_elemnts = host_elements // transfers
 
+            eprint("[INFO] transfer size in KB: {}".format(tranfer_size_elemnts*4/1024))
 
 
             elements = 4096
