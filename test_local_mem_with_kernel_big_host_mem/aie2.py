@@ -189,7 +189,7 @@ def external_mem_to_core():
                 # dma_wait(of_out,of_out_odd,of_in)
 
                 for i in range(transfers):
-                    in_task = shim_dma_single_bd_task(of_in1, inTensor, offset= i *tranfer_size_elemnts ,sizes=[1, 1, 1, tranfer_size_elemnts])
+                    in_task = shim_dma_single_bd_task(of_in1, inTensor, offset= i *tranfer_size_elemnts ,sizes=[1, 1, 1, tranfer_size_elemnts],issue_token=True)
 
                     out_task = shim_dma_single_bd_task(
                         of_out1_odd, outOddTensor, offset= i *tranfer_size_elemnts ,sizes=[1, 1, 1, tranfer_size_elemnts], issue_token=True
@@ -199,11 +199,11 @@ def external_mem_to_core():
                     )
 
                     dma_start_task(in_task, out_task,out_task1)
-                    dma_await_task(out_task,out_task1)
+                    dma_await_task(in_task, out_task,out_task1)
 
                     #trace_utils.gen_trace_done_aie2(ShimTile20)
 
-                    dma_free_task(in_task)
+                    #dma_free_task(in_task)
 
 
 
