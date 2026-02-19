@@ -15,12 +15,62 @@
 #include "xrt/xrt_kernel.h"
 
 
+
+#include "xrt/xrt_graph.h"
+
+
 #ifndef DATATYPES_USING_DEFINED
 #define DATATYPES_USING_DEFINED
 using DATATYPE = std::uint32_t;
 #endif
 
 
+void my_init_xrt_load_kernel(xrt::device &device, xrt::kernel &kernel,
+                                      int verbosity, std::string xclbinFileName,
+                                      std::string kernelNameInXclbin) {
+  // Get a device handle
+  unsigned int device_index = 0;
+  device = xrt::device(device_index);
+
+  // Load the xclbin
+  if (verbosity >= 1)
+    std::cout << "Loading xclbin: " << xclbinFileName << "\n";
+  auto xclbin = xrt::xclbin(xclbinFileName);
+
+  if (verbosity >= 1)
+    std::cout << "Kernel opcode: " << kernelNameInXclbin << "\n";
+
+  // Get the kernel from the xclbin
+  auto xkernels = xclbin.get_kernels();
+  auto xkernel =
+      *std::find_if(xkernels.begin(), xkernels.end(),
+                    [kernelNameInXclbin, verbosity](xrt::xclbin::kernel &k) {
+                      auto name = k.get_name();
+                      if (verbosity >= 1) {
+                        std::cout << "Name: " << name << std::endl;
+                      }
+                      return name.rfind(kernelNameInXclbin, 0) == 0;
+                    });
+  auto kernelName = xkernel.get_name();
+  // Register xclbin
+  if (verbosity >= 1)
+    std::cout << "Registering xclbin: " << xclbinFileName << "\n";
+
+  device.register_xclbin(xclbin);
+
+  // Get a hardware context
+  if (verbosity >= 1)
+    std::cout << "Getting hardware context.\n";
+   //does set exclusive help?
+  xrt::hw_context context(device, xclbin.get_uuid(), xrt::hw_context::access_mode::exclusive);
+
+  // Get a kernel handle
+  if (verbosity >= 1)
+    std::cout << "Getting handle to kernel:" << kernelName << "\n";
+  kernel = xrt::kernel(context, kernelName);
+
+  return;
+}
 
 uint32_t getParity(uint32_t n) {
   int count = 0;
@@ -60,7 +110,7 @@ int main(int argc, const char *argv[]) {
   constexpr bool PRINT_OUT_BUFFERS = false;
   constexpr int64_t oneMBElements = 2*128*1024;
   //not quite one GB 128MB otherwise timeout happens
-  constexpr int64_t oneGBElements = 4096 * oneMBElements;
+  constexpr int64_t oneGBElements =  4096 * oneMBElements;
   constexpr int64_t IN_SIZE = oneGBElements;
   constexpr int64_t OUT_SIZE = IN_SIZE;
   bool enable_ctrl_pkts = false;
@@ -77,9 +127,14 @@ int main(int argc, const char *argv[]) {
   xrt::device device;
   xrt::kernel kernel;
 
-  test_utils::init_xrt_load_kernel(device, kernel, verbosity,
+  /*test_utils::init_xrt_load_kernel(device, kernel, verbosity,
+                                   vm["xclbin"].as<std::string>(),
+                                   vm["kernel"].as<std::string>());*/
+
+  my_init_xrt_load_kernel(device, kernel, verbosity,
                                    vm["xclbin"].as<std::string>(),
                                    vm["kernel"].as<std::string>());
+
 
   // set up the buffer objects
   auto bo_instr = xrt::bo(device, instr_v.size() * sizeof(int),
@@ -163,8 +218,10 @@ int main(int argc, const char *argv[]) {
   float npu_time_min = 9999999;
   float npu_time_max = 0;
 
-  auto run = xrt::run(kernel);
+
   unsigned int opcode = 3;
+
+  /*auto run = xrt::run(kernel);
   run.set_arg(0,opcode);
   run.set_arg(1,bo_instr);
   run.set_arg(2,instr_v.size());
@@ -174,7 +231,7 @@ int main(int argc, const char *argv[]) {
   run.set_arg(5,bo_outOdd);
   //not sure about this one
   run.set_arg(6,bo_ctrlpkts);
-  run.set_arg(7,bo_trace);
+  run.set_arg(7,bo_trace);*/
 
 
   for (int iter = 0; iter < num_iter; iter++) {
@@ -186,7 +243,7 @@ int main(int argc, const char *argv[]) {
     }
 
 
-      for (int i = 0; i < IN_SIZE; i++)
+      for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] = i + iter +1; //plus one for first iteration
 
       // Zero out buffer bo_outC
@@ -207,15 +264,20 @@ int main(int argc, const char *argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    /*auto run =
-        kernel(opcode, bo_instr, instr_v.size(), bo_inA, bo_outC, bo_outOdd, 0, bo_trace);*/
-    run.start();
+    auto run =
+        kernel(opcode, bo_instr, instr_v.size(), bo_inA, bo_outC, bo_outOdd, bo_ctrlpkts, bo_trace);
+
+
+        //xrt::autostart its {};
+        //its.iterations = 0;
+
+    //run.start();
 
 
     ert_cmd_state r = run.wait();
     //run.wait2();
     auto stop = std::chrono::high_resolution_clock::now();
-
+    run.abort();
      if(r != ERT_CMD_STATE_COMPLETED){
         std::cout << "run.wait() did not return ERT_CMD_STATE_COMPLETED: " << r<<"\n";
     }

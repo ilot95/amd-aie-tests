@@ -80,7 +80,7 @@ run_peano: ${targetname}.exe build_peano/final.xclbin
 	#${MLIR_AIE_DIR}/python/aie/utils/trace/get_trace_summary.py --input trace.json
 
 run_xchesscc: ${targetname}.exe build_xchesscc/final.xclbin
-	${powershell} ./$< --verbosity=0 --iters=4 --warmup=0 --trace_sz=${trace_size} --trace_file=trace_xchesscc.txt -x build_xchesscc/final.xclbin -i build_xchesscc/insts.bin -k MLIR_AIE
+	${powershell} ./$< --verbosity=0 --iters=3 --warmup=0 --trace_sz=${trace_size} --trace_file=trace_xchesscc.txt -x build_xchesscc/final.xclbin -i build_xchesscc/insts.bin -k MLIR_AIE
 	#hacky works if iron env is inside mlir-aie repo
 	#${MLIR_AIE_DIR}/../../../../../python/utils/trace/parse.py --input trace_xchesscc.txt --mlir build_mlir/aie.mlir --output trace_xchesscc.json
 	#${MLIR_AIE_DIR}/../../../../../python/utils/trace/get_trace_summary.py --input trace_xchesscc.json
