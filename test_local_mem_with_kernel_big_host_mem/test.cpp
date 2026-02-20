@@ -96,6 +96,8 @@ int main(int argc, const char *argv[]) {
   // Program arguments parsing
   cxxopts::Options options("odd_even Kernel");
   test_utils::add_default_options(options);
+  options.add_option("","e","host_elements", "host elements (assumed to be 4 bytes)",
+      cxxopts::value<int64_t>()->default_value("1024"),"host elements");
 
   cxxopts::ParseResult vm;
   test_utils::parse_options(argc, argv, options, vm);
@@ -106,13 +108,15 @@ int main(int argc, const char *argv[]) {
   std::string trace_file = vm["trace_file"].as<std::string>();
 
   // Declaring design constants
-  constexpr bool VERIFY = false;
+  constexpr bool VERIFY = true;
   constexpr bool PRINT_OUT_BUFFERS = false;
-  constexpr int64_t oneMBElements = 2*128*1024;
+  //constexpr int64_t oneMBElements = 2*128*1024;
   //not quite one GB 128MB otherwise timeout happens
-  constexpr int64_t oneGBElements =  4096 * oneMBElements;
-  constexpr int64_t IN_SIZE = oneGBElements;
-  constexpr int64_t OUT_SIZE = IN_SIZE;
+  //constexpr int64_t oneGBElements =  2048 * oneMBElements;
+  int64_t host_elements = vm["host_elements"].as<int64_t>();
+   std::cout << "host_elements: " << host_elements << "\n";
+  int64_t IN_SIZE = host_elements;
+  int64_t OUT_SIZE = IN_SIZE;
   bool enable_ctrl_pkts = false;
 
 

@@ -11,9 +11,24 @@ devicename ?= $(if $(filter 1,$(NPU2)),npu2,npu)
 trace_size = 0
 
 
-build_mlir/aie.mlir: ${srcdir}/aie2.py
+# we assume 4 bytes as per element
+oneMBElements =$(shell echo 2*128*1024 | bc)
+#$(info $(oneMBElements))
+
+hostElements = $(shell echo $(oneMBElements)*128 | bc)
+
+CONFID:= ${hostElements}.conf
+build_mlir/$(CONFID):
 	mkdir -p ${@D}
-	python3 $< ${devicename}  ${trace_size} > $@
+	rm -f build_mlir/*.conf #remove old .conf files, -f so no error when no .conf files are found
+	touch build_mlir/$(CONFID)
+
+#print := Hostelements:_$(hostElements)
+$(info Hostelements: $(hostElements))
+
+build_mlir/aie.mlir: ${srcdir}/aie2.py build_mlir/$(CONFID)
+	mkdir -p ${@D}
+	python3 $< ${devicename}  ${trace_size} ${hostElements} > $@
 	
 
 #select the right kernel flags depending if you have npu aka NPU Phoenix aka aie_ml aka aie2
@@ -59,7 +74,7 @@ endif
 #--dynamic-objFifos  --no-xchesscc  --no-xbridge    --xchesscc --xbridge -v
 build_peano/final.xclbin: build_mlir/aie.mlir build_peano/odd_even.o
 	mkdir -p ${@D}
-	cd ${@D} && aiecc.py --aie-generate-xclbin --dynamic-objFifos --no-compile-host --xclbin-name=${@F} \
+	cd ${@D} && aiecc.py --aie-generate-xclbin  --no-compile-host --xclbin-name=${@F} \
 				--no-xchesscc --no-xbridge  \
 				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
 
@@ -71,7 +86,7 @@ ${targetname}.exe: ${srcdir}/test.cpp
 	cp host_build/${targetname} $@
 
 run_peano: ${targetname}.exe build_peano/final.xclbin
-	${powershell} ./$< --verbosity=0 --iters=3 --warmup=0 --trace_sz=${trace_size} --trace_file=trace_peano.txt -x build_peano/final.xclbin -i build_peano/insts.bin -k MLIR_AIE
+	${powershell} ./$< --verbosity=0 --host_elements=${hostElements} --iters=3 --warmup=0 --trace_sz=${trace_size} --trace_file=trace_peano.txt -x build_peano/final.xclbin -i build_peano/insts.bin -k MLIR_AIE
     #hacky works if iron env is inside mlir-aie repo
 	#${MLIR_AIE_DIR}/../../../../../python/utils/trace/parse.py --input trace_peano.txt --mlir build_mlir/aie.mlir --output trace_peano.json
 	#${MLIR_AIE_DIR}/../../../../../python/utils/trace/get_trace_summary.py --input trace_peano.json
@@ -80,7 +95,7 @@ run_peano: ${targetname}.exe build_peano/final.xclbin
 	#${MLIR_AIE_DIR}/python/aie/utils/trace/get_trace_summary.py --input trace.json
 
 run_xchesscc: ${targetname}.exe build_xchesscc/final.xclbin
-	${powershell} ./$< --verbosity=0 --iters=3 --warmup=0 --trace_sz=${trace_size} --trace_file=trace_xchesscc.txt -x build_xchesscc/final.xclbin -i build_xchesscc/insts.bin -k MLIR_AIE
+	${powershell} ./$< --verbosity=0 --host_elements=${hostElements} --iters=3 --warmup=0 --trace_sz=${trace_size} --trace_file=trace_xchesscc.txt -x build_xchesscc/final.xclbin -i build_xchesscc/insts.bin -k MLIR_AIE
 	#hacky works if iron env is inside mlir-aie repo
 	#${MLIR_AIE_DIR}/../../../../../python/utils/trace/parse.py --input trace_xchesscc.txt --mlir build_mlir/aie.mlir --output trace_xchesscc.json
 	#${MLIR_AIE_DIR}/../../../../../python/utils/trace/get_trace_summary.py --input trace_xchesscc.json

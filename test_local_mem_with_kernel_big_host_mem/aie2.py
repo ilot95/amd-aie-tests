@@ -31,13 +31,22 @@ if len(sys.argv) > 2:
     else:
         eprint("[Info] sys.argv[2] (trace_size):{} is not a positive number falling back to trace_size = 0".format(sys.argv[2]))
 
+host_elements = 1024
+if len(sys.argv) > 3:
+    if sys.argv[3].isdigit():
+        host_elements = int(sys.argv[3])
+        eprint("[INFO] host_elements: {}".format(host_elements))
+    else:
+        eprint("[Info] sys.argv[3] (host_elements):{} is not a positive number falling back to host_elements = 1024".format(sys.argv[3]))
+
+
 
 def external_mem_to_core():
     with mlir_mod_ctx() as ctx:
 
         @device(dev)
         def device_body():
-            host_elements =  4096 * 2*128*1024
+
 
             transfers = 64
 
