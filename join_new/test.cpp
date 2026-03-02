@@ -351,8 +351,26 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         }
 
 
-        //std::vector<DATATYPE> ref;
+        std::vector<DATATYPE> ref;
         std::unordered_map<DATATYPE, size_t> map_ref;
+        map_ref.reserve(OUT_SIZE);
+        ref.reserve(OUT_SIZE);
+        auto start = std::chrono::high_resolution_clock::now();
+        for (uint32_t i = 0; i < IN_SIZE; i++) {
+            for (uint32_t j = 0; j < IN_SIZE; j++) {
+            if(bufInA[i] == bufInB[j]){
+            ref.push_back(bufInA[i]);
+            }
+        }
+        }
+         auto stop = std::chrono::high_resolution_clock::now();
+         float cpu_time =
+        std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
+            .count();
+          std::cout << ""
+              << "CPU time: " << cpu_time << "us."
+              << std::endl;
+
 
         for (uint32_t i = 0; i < IN_SIZE; i++) {
             for (uint32_t j = 0; j < IN_SIZE; j++) {
