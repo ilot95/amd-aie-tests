@@ -198,19 +198,28 @@ def external_mem_to_core():
 
 
 
-                for i in range(transfers_outer):
-                    in_task = shim_dma_single_bd_task(of_in1, inTensor, offset= i *tranfer_size_elemnts_in ,sizes=[1, 1, 1, tranfer_size_elemnts_in],issue_token=False)
-                    dma_start_task(in_task)
-                    for j in range(transfers_inner):
-                        inner_in_task = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=j * tranfer_size_elemnts_in,
-                                                          sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=False)
-                        out_task = shim_dma_single_bd_task(
-                            of_out1, outOddTensor, offset= i *tranfer_size_elemnts_out ,sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=True
-                        )
-                        dma_start_task(inner_in_task, out_task, )
-                        dma_await_task(out_task)
-                        dma_free_task(inner_in_task)
-                    dma_free_task(in_task)
+
+                in_task = shim_dma_single_bd_task(of_in1, inTensor, offset= 0 ,sizes=[1, 1, 1, tranfer_size_elemnts_in],issue_token=False)
+                out_task = shim_dma_single_bd_task(
+                    of_out1, outOddTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=True
+                )
+
+                dma_start_task(in_task,out_task)
+
+
+                inner_in_task1 = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=0,
+                                                  sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
+
+                dma_start_task(inner_in_task1)
+                dma_await_task(inner_in_task1)
+                inner_in_task2 = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=0,
+                                                         sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
+                dma_start_task(inner_in_task2)
+                dma_await_task(inner_in_task2)
+
+
+                dma_await_task(out_task)
+                dma_free_task(in_task)
 
                     #trace_utils.gen_trace_done_aie2(ShimTile20)
 

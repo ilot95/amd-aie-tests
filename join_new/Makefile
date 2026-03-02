@@ -16,8 +16,7 @@ oneMBElements =$(shell echo 2*128*1024 | bc)
 #$(info $(oneMBElements))
 
 #hostElements = $(shell echo $(oneMBElements)*16 | bc)
-hostElements = 64
-
+hostElements = 128
 CONFID:= ${hostElements}.conf
 build_mlir/$(CONFID):
 	mkdir -p ${@D}
