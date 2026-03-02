@@ -48,18 +48,11 @@ def external_mem_to_core():
         def device_body():
 
 
-            transfers = 1
 
 
-            transfers_inner = transfers
-            transfers_outer = transfers
 
-            eprint("[INFO] transfers_inner: {}".format(transfers_inner))
-            eprint("[INFO] transfers_outer: {}".format(transfers_outer))
-
-
-            tranfer_size_elemnts_in = host_elements // transfers_inner
-            tranfer_size_elemnts_out = (host_elements*host_elements) // transfers_outer
+            tranfer_size_elemnts_in = host_elements
+            tranfer_size_elemnts_out = (host_elements*host_elements)
 
 
             eprint("[INFO] tranfer_size_elemnts_in: {}".format(tranfer_size_elemnts_in))
@@ -77,11 +70,18 @@ def external_mem_to_core():
             eprint("[INFO] tile_ty_size_in: {}".format(tile_ty_size_in))
             eprint("[INFO] tile_ty_size_out: {}".format(tile_ty_size_out))
 
+            #todo fix for A B different sizes
             iters_outer = host_elements // tile_ty_size_in
+            #one relation needs to be pushed several times
+            transfers_inner = iters_outer
+
+            # todo fix for A B different sizes
             iters_inner = host_elements // tile_ty_size_in
 
             eprint("[INFO] iters_outer: {}".format(iters_outer))
             eprint("[INFO] iters_inner: {}".format(iters_inner))
+
+            eprint("[INFO] transfers_inner: {}".format(transfers_inner))
 
 
             tile_ty_in = np.ndarray[(tile_ty_size_in,), np.dtype[np.int32]]
@@ -206,16 +206,13 @@ def external_mem_to_core():
 
                 dma_start_task(in_task,out_task)
 
+                for i in range(transfers_inner):
+                    inner_in_task1 = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=0,
+                                                      sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
 
-                inner_in_task1 = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=0,
-                                                  sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
+                    dma_start_task(inner_in_task1)
+                    dma_await_task(inner_in_task1)
 
-                dma_start_task(inner_in_task1)
-                dma_await_task(inner_in_task1)
-                inner_in_task2 = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=0,
-                                                         sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
-                dma_start_task(inner_in_task2)
-                dma_await_task(inner_in_task2)
 
 
                 dma_await_task(out_task)
