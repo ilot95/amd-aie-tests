@@ -263,12 +263,20 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
        for (int64_t i = 0; i < IN_SIZE; i++)
         bufInB[i] =   iter +1; //plus one for first iteration
         */
+
         for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInA[i] =   dist(rng); //plus one for first iteration
+        bufInA[i] =   dist(rng);
 
        for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInB[i] =   dist(rng); //plus one for first iteration
+        bufInB[i] =   dist(rng);
 
+        /*
+         for (int64_t i = 0; i < IN_SIZE; i++)
+        bufInA[i] =   1;
+
+       for (int64_t i = 0; i < IN_SIZE; i++)
+        bufInB[i] =   1;
+        */
 
       // Zero out buffer bo_outC
       memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
