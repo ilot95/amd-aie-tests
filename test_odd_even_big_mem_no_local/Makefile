@@ -15,7 +15,7 @@ trace_size = 0
 oneMBElements =$(shell echo 2*128*1024 | bc)
 #$(info $(oneMBElements))
 
-hostElements = $(shell echo $(oneMBElements)*1 | bc)
+hostElements = $(shell echo $(oneMBElements)*16 | bc)
 
 CONFID:= ${hostElements}.conf
 build_mlir/$(CONFID):
