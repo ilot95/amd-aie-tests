@@ -16,8 +16,11 @@ oneMBElements =$(shell echo 2*128*1024 | bc)
 #$(info $(oneMBElements))
 
 #hostElements = $(shell echo $(oneMBElements)*16 | bc)
-#todo 32768 does not work (overflow)
-hostElements = 16384
+# 32768 does not work (overflow)
+#max is 16384
+#hostElements = 16384
+hostElements?=16384
+
 CONFID:= ${hostElements}.conf
 build_mlir/$(CONFID):
 	mkdir -p ${@D}
@@ -87,7 +90,7 @@ ${targetname}.exe: ${srcdir}/test.cpp
 	cp host_build/${targetname} $@
 
 run_peano: ${targetname}.exe build_peano/final.xclbin
-	${powershell} ./$< --verbosity=0 --host_elements=${hostElements} --iters=2 --warmup=0 --trace_sz=${trace_size} --trace_file=trace_peano.txt -x build_peano/final.xclbin -i build_peano/insts.bin -k MLIR_AIE
+	${powershell} ./$< --verbosity=0 --host_elements=${hostElements} --iters=3 --warmup=1 --trace_sz=${trace_size} --trace_file=trace_peano.txt -x build_peano/final.xclbin -i build_peano/insts.bin -k MLIR_AIE
     #hacky works if iron env is inside mlir-aie repo
 	#${MLIR_AIE_DIR}/../../../../../python/utils/trace/parse.py --input trace_peano.txt --mlir build_mlir/aie.mlir --output trace_peano.json
 	#${MLIR_AIE_DIR}/../../../../../python/utils/trace/get_trace_summary.py --input trace_peano.json
@@ -96,7 +99,7 @@ run_peano: ${targetname}.exe build_peano/final.xclbin
 	#${MLIR_AIE_DIR}/python/aie/utils/trace/get_trace_summary.py --input trace.json
 
 run_xchesscc: ${targetname}.exe build_xchesscc/final.xclbin
-	${powershell} ./$< --verbosity=0 --host_elements=${hostElements} --iters=2 --warmup=0 --trace_sz=${trace_size} --trace_file=trace_xchesscc.txt -x build_xchesscc/final.xclbin -i build_xchesscc/insts.bin -k MLIR_AIE
+	${powershell} ./$< --verbosity=0 --host_elements=${hostElements} --iters=3 --warmup=1 --trace_sz=${trace_size} --trace_file=trace_xchesscc.txt -x build_xchesscc/final.xclbin -i build_xchesscc/insts.bin -k MLIR_AIE
 	#hacky works if iron env is inside mlir-aie repo
 	#${MLIR_AIE_DIR}/../../../../../python/utils/trace/parse.py --input trace_xchesscc.txt --mlir build_mlir/aie.mlir --output trace_xchesscc.json
 	#${MLIR_AIE_DIR}/../../../../../python/utils/trace/get_trace_summary.py --input trace_xchesscc.json

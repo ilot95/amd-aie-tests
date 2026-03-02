@@ -224,6 +224,8 @@ int main(int argc, const char *argv[]) {
   float npu_time_min = 9999999;
   float npu_time_max = 0;
 
+  float cpu_time_total = 0;
+
 
   unsigned int opcode = 3;
 
@@ -264,19 +266,19 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         bufInB[i] =   iter +1; //plus one for first iteration
         */
 
-        for (int64_t i = 0; i < IN_SIZE; i++)
+        /*for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   dist(rng);
 
        for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInB[i] =   dist(rng);
+        bufInB[i] =   dist(rng);*/
 
-        /*
+
          for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   1;
 
        for (int64_t i = 0; i < IN_SIZE; i++)
         bufInB[i] =   1;
-        */
+
 
       // Zero out buffer bo_outC
       memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
@@ -335,6 +337,11 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
     std::cout << ""
               << "NPU time: " << npu_time << "us."
               << std::endl;
+
+  if (iter < n_warmup_iterations)
+      /* Warmup iterations do not count towards average runtime. */
+      continue;
+
     npu_time_total += npu_time;
     npu_time_min = (npu_time < npu_time_min) ? npu_time : npu_time_min;
     npu_time_max = (npu_time > npu_time_max) ? npu_time : npu_time_max;
@@ -378,7 +385,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
           std::cout << ""
               << "CPU time: " << cpu_time << "us."
               << std::endl;
-
+          cpu_time_total += cpu_time;
 
         for (uint32_t i = 0; i < IN_SIZE; i++) {
             for (uint32_t j = 0; j < IN_SIZE; j++) {
@@ -434,12 +441,17 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             << "Avg NPU time: " << npu_time_total / n_iterations << "us."
             << std::endl;
 
+std::cout << std::endl
+            << "Avg CPU time: " << cpu_time_total / n_iterations << "us."
+            << std::endl;
 
 
 
   // Print Pass/Fail result of our test
   if (!errors) {
     std::cout << std::endl << "PASS!" << std::endl << std::endl;
+    std::ofstream log("logfile.csv", std::ios_base::app | std::ios_base::out);
+    log << host_elements << ";" << npu_time_total / n_iterations << ";" << cpu_time_total / n_iterations << "\n";
     return 0;
   } else {
     std::cout << std::endl
