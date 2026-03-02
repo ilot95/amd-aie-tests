@@ -151,10 +151,10 @@ def external_mem_to_core():
 
                 for _ in range_(0xFFFFFFFF):
                     #for _ in range_(iters):
-                    for _ in range(iters_outer):
+                    for _ in range_(iters_outer):
                         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
 
-                        for _ in range(iters_inner):
+                        for _ in range_(iters_inner):
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
                             out = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
