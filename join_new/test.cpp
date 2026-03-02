@@ -247,10 +247,10 @@ int main(int argc, const char *argv[]) {
 
 
       for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInA[i] = i + iter +1; //plus one for first iteration
+        bufInA[i] =   iter +1; //plus one for first iteration
 
        for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInB[i] = i + iter +1; //plus one for first iteration
+        bufInB[i] =   iter +1; //plus one for first iteration
 
       // Zero out buffer bo_outC
       memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));

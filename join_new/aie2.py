@@ -50,23 +50,28 @@ def external_mem_to_core():
 
             transfers = 1
 
-            transfers_outer = transfers
+
             transfers_inner = transfers
+            transfers_outer = transfers
 
-            tranfer_size_elemnts = host_elements // transfers
+            tranfer_size_elemnts_in = host_elements // transfers_inner
+            tranfer_size_elemnts_out = host_elements*host_elements // transfers_outer
 
-            eprint("[INFO] transfer size in KB: {}".format(tranfer_size_elemnts*4/1024))
+
+            eprint("[INFO] transfer size in KB: {}".format(tranfer_size_elemnts_in*4/1024))
 
 
             #elements = 4096
 
-            tile_ty_size = 128
+            tile_ty_size_in = 64
+            tile_ty_size_out = tile_ty_size_in * tile_ty_size_in
 
-            iters_outer = host_elements // tile_ty_size
-            iters_inner = host_elements // tile_ty_size
+            iters_outer = host_elements // tile_ty_size_in
+            iters_inner = host_elements // tile_ty_size_in
 
 
-            tile_ty = np.ndarray[(tile_ty_size,), np.dtype[np.int32]]
+            tile_ty_in = np.ndarray[(tile_ty_size_in,), np.dtype[np.int32]]
+            tile_ty_out = np.ndarray[(tile_ty_size_out,), np.dtype[np.int32]]
 
             #buffer_ty = np.ndarray[(elements,), np.dtype[np.int32]]
 
@@ -76,7 +81,7 @@ def external_mem_to_core():
             # External, binary kernel definition
             odd_even = external_func(
                 "odd_even",
-                inputs=[tile_ty, tile_ty,tile_ty, np.int32]
+                inputs=[tile_ty_in, tile_ty_in,tile_ty_out, np.int32]
             )
 
             # Tile declarations
@@ -91,15 +96,15 @@ def external_mem_to_core():
             # AIE-array data movement with object fifos
             # Input
             #of_in = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
-            of_in1 = object_fifo("in1", ShimTile00, ComputeTile02, 2, tile_ty)
-            of_in_inner = object_fifo("in1_inner", ShimTile00, ComputeTile02, 2, tile_ty)
+            of_in1 = object_fifo("in1", ShimTile00, ComputeTile02, 2, tile_ty_in)
+            of_in_inner = object_fifo("in1_inner", ShimTile00, ComputeTile02, 2, tile_ty_in)
             #object_fifo_link(of_in, of_in1)
 
 
 
             # Output
             #of_out1 = object_fifo("out1", ComputeTile02, MemTile01, 2, tile_ty)
-            of_out1 = object_fifo("out", ComputeTile02, ShimTile00, 2, tile_ty)
+            of_out1 = object_fifo("out", ComputeTile02, ShimTile00, 2, tile_ty_out)
             #object_fifo_link(of_out1, of_out)
 
             #of_out1_odd = object_fifo("outodd", ComputeTile02, MemTile01, 2, tile_ty)
@@ -138,7 +143,7 @@ def external_mem_to_core():
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
                             out = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
-                            call(odd_even, [elem_in, elem_inner, out, tile_ty_size])
+                            call(odd_even, [elem_in, elem_inner, out, tile_ty_size_in])
 
                             of_out1.release(ObjectFifoPort.Produce, 1)
                             of_in_inner.release(ObjectFifoPort.Consume, 1)
@@ -179,13 +184,13 @@ def external_mem_to_core():
 
 
                 for i in range(transfers_outer):
-                    in_task = shim_dma_single_bd_task(of_in1, inTensor, offset= i *tranfer_size_elemnts ,sizes=[1, 1, 1, tranfer_size_elemnts],issue_token=False)
+                    in_task = shim_dma_single_bd_task(of_in1, inTensor, offset= i *tranfer_size_elemnts_in ,sizes=[1, 1, 1, tranfer_size_elemnts_in],issue_token=False)
                     dma_start_task(in_task)
-                    for i in range(transfers_inner):
-                        inner_in_task = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=i * tranfer_size_elemnts,
-                                                          sizes=[1, 1, 1, tranfer_size_elemnts], issue_token=False)
+                    for j in range(transfers_inner):
+                        inner_in_task = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=j * tranfer_size_elemnts_in,
+                                                          sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=False)
                         out_task = shim_dma_single_bd_task(
-                            of_out1, outOddTensor, offset= i *tranfer_size_elemnts ,sizes=[1, 1, 1, tranfer_size_elemnts], issue_token=True
+                            of_out1, outOddTensor, offset= i *tranfer_size_elemnts_out ,sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=True
                         )
                         dma_start_task(inner_in_task, out_task, )
                         dma_await_task(out_task)
