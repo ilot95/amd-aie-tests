@@ -5,6 +5,9 @@
 #include <string>
 #include <vector>
 #include <set>
+#include<unordered_map>
+
+#include <random>
 
 #include "cxxopts.hpp"
 #include "test_utils.h"
@@ -21,7 +24,7 @@
 
 #ifndef DATATYPES_USING_DEFINED
 #define DATATYPES_USING_DEFINED
-using DATATYPE = std::uint32_t;
+using DATATYPE = std::int32_t;
 #endif
 
 
@@ -108,8 +111,8 @@ int main(int argc, const char *argv[]) {
   std::string trace_file = vm["trace_file"].as<std::string>();
 
   // Declaring design constants
-  constexpr bool VERIFY = false;
-  constexpr bool PRINT_OUT_BUFFERS = true;
+  constexpr bool VERIFY = true;
+  constexpr bool PRINT_OUT_BUFFERS = false;
   //constexpr int64_t oneMBElements = 2*128*1024;
   //not quite one GB 128MB otherwise timeout happens
   //constexpr int64_t oneGBElements =  2048 * oneMBElements;
@@ -236,6 +239,14 @@ int main(int argc, const char *argv[]) {
   run.set_arg(6,bo_ctrlpkts);
   run.set_arg(7,bo_trace);*/
 
+  unsigned int seed = 12345;
+
+// Create random engine with seed
+std::mt19937 rng(seed);
+
+// Define distribution (range 1–100)
+std::uniform_int_distribution<DATATYPE> dist(1, 64);
+
 
   for (int iter = 0; iter < num_iter; iter++) {
     //todo put back warmup iterrations
@@ -245,12 +256,19 @@ int main(int argc, const char *argv[]) {
       std::cout << "Setting inputs and zero out out buffers ..." << std::endl;
     }
 
-
+       /*
       for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   iter +1; //plus one for first iteration
 
        for (int64_t i = 0; i < IN_SIZE; i++)
         bufInB[i] =   iter +1; //plus one for first iteration
+        */
+        for (int64_t i = 0; i < IN_SIZE; i++)
+        bufInA[i] =   dist(rng); //plus one for first iteration
+
+       for (int64_t i = 0; i < IN_SIZE; i++)
+        bufInB[i] =   dist(rng); //plus one for first iteration
+
 
       // Zero out buffer bo_outC
       memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
@@ -331,22 +349,48 @@ int main(int argc, const char *argv[]) {
         if (verbosity >= 1) {
             std::cout << "Verifying results ..." << std::endl;
         }
-        int cnt_odd_in = 0;
-        int cnt_even_in = 0;
-        int cnt_odd = 0;
-        int cnt_even =0;
+
+
+        //std::vector<DATATYPE> ref;
+        std::unordered_map<DATATYPE, size_t> map_ref;
+
+        for (uint32_t i = 0; i < IN_SIZE; i++) {
+            for (uint32_t j = 0; j < IN_SIZE; j++) {
+            if(bufInA[i] == bufInB[j]){
+            //ref.push_back(bufInA[i]);
+            map_ref[bufInA[i]] ++;
+            }else{
+                map_ref[-1]++;
+            }
+        }
+        }
+        std::cout << "\nref:" << std::endl;
+        for (auto& re :map_ref) {
+
+            std::cout << re.first << "  "<< re.second << "\n";
+        }
+
+        std::unordered_map<DATATYPE, size_t> result;
+        for (uint32_t i = 0; i < OUT_SIZE; i++) {
+            result[bufOut[i]] ++;
+        }
+
+        std::cout << "\nresult:" << std::endl;
+        for (auto& re :result) {
+
+            std::cout << re.first << "  "<< re.second << "\n";
+        }
+
+        if(map_ref==result){
+            std::cout << "equal"<< "\n";
+        }else{
+            std::cout << "not equal"<< "\n";
+            errors++;
+        }
 
 
 
 
-
-
-
-
-         //if (verbosity >= 1) {
-
-
-        //}
     }
 
 

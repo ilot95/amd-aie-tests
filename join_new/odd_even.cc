@@ -17,8 +17,11 @@ void odd_even(int32_t *input, int32_t *input1,  int32_t *value,int32_t N) {
       for (int j = 0; j < N; j++) {
         if(input[i] == input1[j]){
             value[join_count] = input[i];
-            join_count++;
+
+        }else{
+            value[join_count] = -1;
         }
+        join_count++;
   }
   event1();
 }

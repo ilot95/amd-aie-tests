@@ -54,11 +54,19 @@ def external_mem_to_core():
             transfers_inner = transfers
             transfers_outer = transfers
 
+            eprint("[INFO] transfers_inner: {}".format(transfers_inner))
+            eprint("[INFO] transfers_outer: {}".format(transfers_outer))
+
+
             tranfer_size_elemnts_in = host_elements // transfers_inner
-            tranfer_size_elemnts_out = host_elements*host_elements // transfers_outer
+            tranfer_size_elemnts_out = (host_elements*host_elements) // transfers_outer
 
 
-            eprint("[INFO] transfer size in KB: {}".format(tranfer_size_elemnts_in*4/1024))
+            eprint("[INFO] tranfer_size_elemnts_in: {}".format(tranfer_size_elemnts_in))
+            eprint("[INFO] tranfer_size_elemnts_out: {}".format(tranfer_size_elemnts_out))
+
+
+            #eprint("[INFO] transfer size in KB: {}".format(tranfer_size_elemnts_in*4/1024))
 
 
             #elements = 4096
@@ -66,8 +74,14 @@ def external_mem_to_core():
             tile_ty_size_in = 64
             tile_ty_size_out = tile_ty_size_in * tile_ty_size_in
 
+            eprint("[INFO] tile_ty_size_in: {}".format(tile_ty_size_in))
+            eprint("[INFO] tile_ty_size_out: {}".format(tile_ty_size_out))
+
             iters_outer = host_elements // tile_ty_size_in
             iters_inner = host_elements // tile_ty_size_in
+
+            eprint("[INFO] iters_outer: {}".format(iters_outer))
+            eprint("[INFO] iters_inner: {}".format(iters_inner))
 
 
             tile_ty_in = np.ndarray[(tile_ty_size_in,), np.dtype[np.int32]]
@@ -75,7 +89,8 @@ def external_mem_to_core():
 
             #buffer_ty = np.ndarray[(elements,), np.dtype[np.int32]]
 
-            data_ty = np.ndarray[(host_elements,), np.dtype[np.int32]]
+            data_ty_in = np.ndarray[(tranfer_size_elemnts_in,), np.dtype[np.int32]]
+            data_ty_out = np.ndarray[(tranfer_size_elemnts_out,), np.dtype[np.int32]]
 
 
             # External, binary kernel definition
@@ -136,10 +151,10 @@ def external_mem_to_core():
 
                 for _ in range_(0xFFFFFFFF):
                     #for _ in range_(iters):
-                    for _ in range_(iters_outer):
+                    for _ in range(iters_outer):
                         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
 
-                        for _ in range_(iters_inner):
+                        for _ in range(iters_inner):
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
                             out = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
@@ -170,7 +185,7 @@ def external_mem_to_core():
             #if trace_size > 0:
             #    trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
 
-            @runtime_sequence(data_ty, data_ty,data_ty)
+            @runtime_sequence(data_ty_in, data_ty_in,data_ty_out)
             def sequence(inTensor,innerinTensor,outOddTensor,):
 
                 if trace_size > 0:
@@ -183,19 +198,18 @@ def external_mem_to_core():
 
 
 
-                for i in range(transfers_outer):
-                    in_task = shim_dma_single_bd_task(of_in1, inTensor, offset= i *tranfer_size_elemnts_in ,sizes=[1, 1, 1, tranfer_size_elemnts_in],issue_token=False)
-                    dma_start_task(in_task)
-                    for j in range(transfers_inner):
-                        inner_in_task = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=j * tranfer_size_elemnts_in,
-                                                          sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=False)
-                        out_task = shim_dma_single_bd_task(
-                            of_out1, outOddTensor, offset= i *tranfer_size_elemnts_out ,sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=True
-                        )
-                        dma_start_task(inner_in_task, out_task, )
-                        dma_await_task(out_task)
-                        dma_free_task(inner_in_task)
-                    dma_free_task(in_task)
+                #for i in range(transfers_outer):
+                    in_task = shim_dma_single_bd_task(of_in1, inTensor, offset= 0 *tranfer_size_elemnts_in ,sizes=[1, 1, 1, tranfer_size_elemnts_in],issue_token=True)
+                    #dma_start_task(in_task)
+                    #for j in range(transfers_inner):
+                    inner_in_task = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=0 * tranfer_size_elemnts_in,
+                                                      sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
+                    out_task = shim_dma_single_bd_task(
+                        of_out1, outOddTensor, offset= 0 *tranfer_size_elemnts_out ,sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=True
+                    )
+                    dma_start_task(in_task,inner_in_task, out_task )
+                    dma_await_task(in_task,inner_in_task, out_task)
+
 
                     #trace_utils.gen_trace_done_aie2(ShimTile20)
 
