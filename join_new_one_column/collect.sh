@@ -1,4 +1,4 @@
-for elements in 128 256 512 1024 2048 4096 8192 16384
+for elements in 256 512 1024 2048 4096 8192 16384
 do
-    make run_peano hostElements=${elements}
+    make run_xchesscc hostElements=${elements}
 done

@@ -154,11 +154,9 @@ int main(int argc, const char *argv[]) {
   auto bo_outC = xrt::bo(device, OUT_SIZE * sizeof(DATATYPE),
                          XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(5));
 
-  // If we enable control packets, then this is the input xrt buffer for that.
-  // Otherwise, this is a dummy placedholder buffer.
-    //todo why do we need this?
-  auto bo_ctrlpkts =
-      xrt::bo(device, 8, XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(6));
+  //transfer 64 bytes as done
+  auto bo_done =
+      xrt::bo(device, 16 * sizeof(uint32_t), XRT_BO_FLAGS_HOST_ONLY, kernel.group_id(6));
 
   // Workaround so we declare a really small trace buffer when one is not used
   // Second workaround for driver issue. Allocate large trace buffer *4
@@ -190,18 +188,11 @@ int main(int argc, const char *argv[]) {
 
 
   char *bufTrace = bo_trace.map<char *>();
-  uint32_t *bufCtrlPkts = bo_ctrlpkts.map<uint32_t *>();
+  uint32_t *bufDone = bo_done.map<uint32_t *>();
+  memset(bufOut, 0, 16 * sizeof(uint32_t));
 
 
-    // Set control packet values
-  if (trace_size > 0 && enable_ctrl_pkts) {
-    bufCtrlPkts[0] = create_ctrl_pkt(1, 0, 0x32004); // core status
-    bufCtrlPkts[1] = create_ctrl_pkt(1, 0, 0x320D8); // trace status
-    if (verbosity >= 1) {
-      std::cout << "bufCtrlPkts[0]:" << std::hex << bufCtrlPkts[0] << std::endl;
-      std::cout << "bufCtrlPkts[1]:" << std::hex << bufCtrlPkts[1] << std::endl;
-    }
-  }
+
 
   // sync host to device memories
   bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
@@ -209,10 +200,12 @@ int main(int argc, const char *argv[]) {
   bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   bo_inB.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
+  bo_done.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
   if (trace_size > 0) {
     bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
-    if (enable_ctrl_pkts)
-      bo_ctrlpkts.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+    //if (enable_ctrl_pkts)
+      //bo_ctrlpkts.sync(XCL_BO_SYNC_BO_TO_DEVICE);
   }
 
 
@@ -257,7 +250,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
       if (verbosity >= 1) {
       std::cout << "Setting inputs and zero out out buffers ..." << std::endl;
     }
-       constexpr bool worst = false;
+
        /*
       for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   iter +1; //plus one for first iteration
@@ -266,38 +259,36 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         bufInB[i] =   iter +1; //plus one for first iteration
         */
 
-        if(worst){
-               for (int64_t i = 0; i < IN_SIZE; i++)
+        /*for (int64_t i = 0; i < IN_SIZE; i++)
+        bufInA[i] =   dist(rng);
+
+       for (int64_t i = 0; i < IN_SIZE; i++)
+        bufInB[i] =   dist(rng);*/
+
+
+         for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   1;
 
        for (int64_t i = 0; i < IN_SIZE; i++)
         bufInB[i] =   1;
 
-        }else{
-            for (int64_t i = 0; i < IN_SIZE; i++)
-            bufInA[i] =   dist(rng);
-
-           for (int64_t i = 0; i < IN_SIZE; i++)
-            bufInB[i] =   dist(rng);
-        }
-
-
-
-
 
       // Zero out buffer bo_outC
       memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+
+      memset(bufDone, 0, 16 * sizeof(uint32_t));
 
       if (trace_size > 0 ) {
           //zero out buffTrace each iteration???
           memset(bufTrace,0,tmp_trace_size*sizeof(char));
           bo_trace.sync(XCL_BO_SYNC_BO_TO_DEVICE);
       }
-      //this should not be needed
-      //bo_instr.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
       bo_inA.sync(XCL_BO_SYNC_BO_TO_DEVICE);
       bo_inB.sync(XCL_BO_SYNC_BO_TO_DEVICE);
       bo_outC.sync(XCL_BO_SYNC_BO_TO_DEVICE);
+
+      bo_done.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
 
     std::cout << "Running Kernel.\n";
@@ -305,7 +296,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
     auto start = std::chrono::high_resolution_clock::now();
 
     auto run =
-        kernel(opcode, bo_instr, instr_v.size(), bo_inA,bo_inB, bo_outC, bo_ctrlpkts, bo_trace);
+        kernel(opcode, bo_instr, instr_v.size(), bo_inA,bo_inB, bo_outC, bo_done, bo_trace);
 
 
         //xrt::autostart its {};
@@ -324,6 +315,17 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
 
     // Sync device to host memories
     bo_outC.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
+    bo_done.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
+
+
+    std::cout << "Print done:" << std::endl;
+
+      for (uint32_t i = 0; i < 16; i++) {
+      int32_t test = bufDone[i];
+      std::cout << test << " ";
+    }
+
 
     if (trace_size > 0)
       bo_trace.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
