@@ -139,13 +139,13 @@ def external_mem_to_core():
             )
 
             ty_one_int = np.ndarray[(1,), np.dtype[np.int32]]
-            join_cnt_fifo = aie.buffer(
+            join_cnt = aie.buffer(
                 tile=ComputeTile02,
                 datatype=ty_one_int,
                 name=f"join_cnt_fifo",
                 initial_value=np.array(0, dtype=np.int32)
             )
-            join_cnt_buffer = aie.buffer(
+            global_join_cnt = aie.buffer(
                 tile=ComputeTile02,
                 datatype=ty_one_int,
                 name=f"join_cnt_buffer",
@@ -161,39 +161,42 @@ def external_mem_to_core():
                     #stack allocation
                     #counter = memref.alloca([1], i32())
                     #probably needed
-                    join_cnt_fifo[0] = 0
+                    join_cnt[0] = 0
+                    global_join_cnt[0] = 0
                     for _ in range_(iters_outer):
                         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
 
-                        for i in range_(iters_inner,insert_yield=True):
+                        for _ in range_(iters_inner,insert_yield=True):
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
 
-                            out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                            #out = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
                             #with if_(join_cnt_fifo[0]==0, hasElse=False) as if_op:
                             #    yield ()
 
 
 
-                            cm1 = arith.constant(0)
-                            join_cnt_buffer[0] = arith.constant(1)
 
-                            init_running = arith.constant(1000)
-                            wh = scf.WhileOp([i32()],[init_running])
-                            bf = wh.before.blocks.append(init_running.type)
-                            af = wh.after.blocks.append(init_running.type)
+                            init_i = arith.constant(0)
+                            init_j = arith.constant(0)
+                            wh = scf.WhileOp([i32(),i32()],[init_i,init_j])
+                            bf = wh.before.blocks.append(init_i.type,init_j.type)
+                            af = wh.after.blocks.append(init_i.type,init_j.type)
 
                             with InsertionPoint(bf):
-                                running = bf.arguments[0]
+                                running_i = bf.arguments[0]
+                                running_j = bf.arguments[1]
 
                                 # condition: running != 0
-                                cond = arith.cmpi("ne", running, arith.constant( 0))
+                                #
+                                cond = arith.cmpi("eq", running_i, arith.constant(64))
 
                                 # scf.condition returns the condition + loop-carried values
-                                scf.condition(cond, [running])
+                                scf.condition(cond, [running_i,running_j])
 
                             with InsertionPoint(af):
-                                running = af.arguments[0]
+                                i = af.arguments[0]
+                                j = af.arguments[1]
 
                                 # Acquire FIFO element
 
@@ -206,8 +209,23 @@ def external_mem_to_core():
 
                                 #This seems to work
                                 #join_cnt_buffer[0] = join_cnt_buffer[0] - 1
-                                call(odd_even, [elem_in, elem_inner, out, join_cnt_fifo, output_buffer, join_cnt_buffer,
-                                                tile_ty_size_in])
+
+
+
+                                with if_(elem_in[i] == elem_inner[j]):
+                                    output_buffer[join_cnt[0]] = elem_in[i]
+                                    join_cnt[0] = join_cnt[0] + 1
+                                    global_join_cnt[0] = global_join_cnt[0] + 1
+
+                                #chek if buffer full
+                                #todo think of last iteration
+                                with if_(join_cnt[0] == tile_ty_size_out):
+                                    out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                                    for z in range_(iters_inner, insert_yield=True):
+                                        out[z] = output_buffer[z]
+                                    of_out1.release(ObjectFifoPort.Produce, 1)
+                                    join_cnt[0] = 0
+
 
                                 # Increment value and store
                                 # dont know what this does
@@ -215,11 +233,20 @@ def external_mem_to_core():
                                 #memref.store(result, elem, [idx0])
 
                                 # Yield updated loop-carried values
-                                next_running = arith.subi(running, arith.constant(1))
-                                scf.yield_([next_running])
+                                next_running_j = arith.addi(j, arith.constant(1))
+                                #next_running_i_maybe = arith.addi(i, arith.constant(1))
+                                cmp = arith.cmpi("eq", next_running_j, arith.constant(64))
+                                next_running_j = arith.select(cmp, arith.constant(0), next_running_j)
+
+                                next_running_i = arith.select(cmp, j+1, i)
+
+
+
+
+                                scf.yield_([next_running_i,next_running_j])
 
                             of_in_inner.release(ObjectFifoPort.Consume, 1)
-                            of_out1.release(ObjectFifoPort.Produce, 1)
+                            #
 
 
                             # out = of_out1.acquire(ObjectFifoPort.Produce, 1)
@@ -237,7 +264,7 @@ def external_mem_to_core():
 
                     elem_done = of_done.acquire(ObjectFifoPort.Produce,1)
                     for i in range_(16):
-                        elem_done[i] = join_cnt_fifo[0]
+                        elem_done[i] = global_join_cnt[0]
                     of_done.release(ObjectFifoPort.Produce, 1)
 
 
