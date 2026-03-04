@@ -33,7 +33,7 @@ void odd_even(
   }
   event1();
 }
-join_count_fifo[0] = join_count;
+join_count_fifo[0] = join_count_fifo[0] + join_count;
 //return 7;
 }
 

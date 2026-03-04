@@ -176,7 +176,7 @@ def external_mem_to_core():
 
 
                             cm1 = arith.constant(0)
-                            join_cnt_buffer[0] = arith.constant(100)
+                            join_cnt_buffer[0] = arith.constant(1)
 
                             init_running = arith.constant(1)
                             wh = scf.WhileOp([i32()],[init_running])
@@ -193,20 +193,19 @@ def external_mem_to_core():
                                 scf.condition(cond, [init_running])
 
                             with InsertionPoint(af):
-                                #running = af.arguments[0]
+                                #running = af.arguments[0]f
 
                                 # Acquire FIFO element
-
 
                                 idx0 = arith.constant( 0,index=True)
                                 val = memref.load(join_cnt_buffer, [idx0])
 
-                                # Compute next running: break if sentinel -1
+                                # Compute next running: break if sentinel 0
                                 is_stop = arith.cmpi("eq", val, cm1)
                                 next_running = arith.select(is_stop, arith.constant( 0), arith.constant(1))
 
+                                #This seems to work
                                 join_cnt_buffer[0] = join_cnt_buffer[0] - 1
-
                                 call(odd_even, [elem_in, elem_inner, out, join_cnt_fifo, output_buffer, join_cnt_buffer,
                                                 tile_ty_size_in])
 
@@ -214,9 +213,6 @@ def external_mem_to_core():
                                 # dont know what this does
                                 #result = arith.addi(val, c1)
                                 #memref.store(result, elem, [idx0])
-
-                                # Release FIFO
-
 
                                 # Yield updated loop-carried values
                                 scf.yield_([next_running])
@@ -240,7 +236,7 @@ def external_mem_to_core():
 
                     elem_done = of_done.acquire(ObjectFifoPort.Produce,1)
                     for i in range_(16):
-                        elem_done[i] = 5
+                        elem_done[i] = join_cnt_fifo[0]
                     of_done.release(ObjectFifoPort.Produce, 1)
 
 
