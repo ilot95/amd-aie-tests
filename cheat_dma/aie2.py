@@ -216,16 +216,19 @@ def external_mem_to_core():
                                     jc = join_cnt[0]
                                     output_buffer[jc] = elem_in_i
                                     join_cnt[0] = jc + 1
-                                    global_join_cnt[0] = global_join_cnt[0] + 1
+
 
                                 #chek if buffer full
                                 #todo think of last iteration
-                                with if_(join_cnt[0] == tile_ty_size_out):
+                                #|| (i==63 && j==63)
+
+                                with if_((join_cnt[0] == tile_ty_size_out) ):
                                     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
                                     for z in range_(tile_ty_size_out):
                                         out[z] = output_buffer[z]
                                     of_out1.release(ObjectFifoPort.Produce, 1)
                                     join_cnt[0] = 0
+                                    global_join_cnt[0] = global_join_cnt[0] + 1
 
                                 # Increment value and store
                                 # dont know what this does
@@ -246,25 +249,33 @@ def external_mem_to_core():
                                 scf.yield_([next_running_i,next_running_j])
 
                             of_in_inner.release(ObjectFifoPort.Consume, 1)
-                            #
 
-
-                            # out = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                            #
-                            # elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
                             # call(odd_even, [elem_in, elem_inner, out,join_cnt_fifo,output_buffer,join_cnt_buffer, tile_ty_size_in])
-                            # of_in_inner.release(ObjectFifoPort.Consume, 1)
-                            #
-                            #
-                            # of_out1.release(ObjectFifoPort.Produce, 1)
 
 
 
                         of_in1.release(ObjectFifoPort.Consume, 1)
 
+
+                    # for z in range_(64):
+                    #     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                    #
+                    #     of_out1.release(ObjectFifoPort.Produce, 1)
+
+                    with if_(join_cnt[0]>0):
+                        out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                        #todo loop less
+                        for z in range_(tile_ty_size_out):
+                            out[z] =0
+                        for z in range_(join_cnt[0]):
+                            out[z] = output_buffer[z]
+                        of_out1.release(ObjectFifoPort.Produce, 1)
+                        join_cnt[0] = 0
+
                     elem_done = of_done.acquire(ObjectFifoPort.Produce,1)
                     for i in range_(16):
                         elem_done[i] = global_join_cnt[0]
+                    elem_done[0] = join_cnt[0]
                     of_done.release(ObjectFifoPort.Produce, 1)
 
 

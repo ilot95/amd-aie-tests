@@ -6,6 +6,7 @@
 #include <vector>
 #include <set>
 #include<unordered_map>
+#include<iterator>
 
 #include <random>
 
@@ -259,18 +260,18 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         bufInB[i] =   iter +1; //plus one for first iteration
         */
 
-        /*for (int64_t i = 0; i < IN_SIZE; i++)
+        for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   dist(rng);
 
        for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInB[i] =   dist(rng);*/
+        bufInB[i] =   dist(rng);
 
 
-         for (int64_t i = 0; i < IN_SIZE; i++)
+       /*  for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   1;
 
        for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInB[i] =   1;
+        bufInB[i] =   1;*/
 
 
       // Zero out buffer bo_outC
@@ -374,8 +375,8 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
 
 
         std::vector<DATATYPE> ref;
-        std::unordered_map<DATATYPE, size_t> map_ref;
-        map_ref.reserve(OUT_SIZE);
+        std::map<DATATYPE, size_t> map_ref;
+        //map_ref.reserve(OUT_SIZE);
         ref.reserve(OUT_SIZE);
         auto start = std::chrono::high_resolution_clock::now();
         for (uint32_t i = 0; i < IN_SIZE; i++) {
@@ -410,7 +411,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             std::cout << re.first << "  "<< re.second << "\n";
         }
 
-        std::unordered_map<DATATYPE, size_t> result;
+        std::map<DATATYPE, size_t> result;
         for (uint32_t i = 0; i < OUT_SIZE; i++) {
             result[bufOut[i]] ++;
         }
@@ -425,6 +426,18 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             std::cout << "equal"<< "\n";
         }else{
             std::cout << "not equal"<< "\n";
+
+            auto it = map_ref.begin();
+            for (size_t i =0;i<map_ref.size();i++) {
+
+
+             std::cout << it->first << "  "<< it->second << "\n";
+             it++;
+            }
+
+            std::cout << "map_ref.size(): "<< map_ref.size() << " result.size() "<< result.size() << "\n";
+
+
             errors++;
         }
 
