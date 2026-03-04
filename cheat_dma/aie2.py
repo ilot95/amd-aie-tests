@@ -8,7 +8,13 @@ from aie.dialects.aie import *
 from aie.dialects.aiex import *
 from aie.helpers.dialects.scf import _for as range_, if_, else_
 from aie.extras.context import mlir_mod_ctx
+
+from aie.ir import *
+
+from aie.dialects import cf
 from setuptools.archive_util import extraction_drivers
+
+from aie.dialects.scf import IfOp, ForOp, yield_
 
 #use stderr so the mlir output does not break
 #These are don't have to be errors
@@ -46,10 +52,6 @@ def external_mem_to_core():
 
         @device(dev)
         def device_body():
-
-
-
-
 
             tranfer_size_elemnts_in = host_elements
             tranfer_size_elemnts_out = (host_elements*host_elements)
@@ -94,11 +96,12 @@ def external_mem_to_core():
 
             data_ty_done = np.ndarray[(16,), np.dtype[np.int32]]
 
+            data_ty_one_int = np.ndarray[(1,), np.dtype[np.int32]]
 
             # External, binary kernel definition
             odd_even = external_func(
                 "odd_even",
-                inputs=[tile_ty_in, tile_ty_in,tile_ty_out, np.int32]
+                inputs=[tile_ty_in, tile_ty_in,tile_ty_out,data_ty_one_int,tile_ty_out,data_ty_one_int,np.int32]
             )
 
             # Tile declarations
@@ -125,29 +128,52 @@ def external_mem_to_core():
 
             of_done = object_fifo("outdone", ComputeTile02, ShimTile00, 2, data_ty_done)
 
+            output_buffer = aie.buffer(
+                tile=ComputeTile02,
+                datatype=tile_ty_out,
+                name=f"outputbuffer",
+                initial_value=np.array(0, dtype=np.int32)
+            )
 
-
-
+            ty_one_int = np.ndarray[(1,), np.dtype[np.int32]]
+            join_cnt_fifo = aie.buffer(
+                tile=ComputeTile02,
+                datatype=ty_one_int,
+                name=f"join_cnt_fifo",
+                initial_value=np.array(0, dtype=np.int32)
+            )
+            join_cnt_buffer = aie.buffer(
+                tile=ComputeTile02,
+                datatype=ty_one_int,
+                name=f"join_cnt_buffer",
+                initial_value=np.array(0, dtype=np.int32)
+            )
 
             # Set up compute tiles
             # Compute tile
             @core(ComputeTile02, "odd_even.o")
             def core_body_02():
-
-
                 for _ in range_(0xFFFFFFFF):
-                    #for _ in range_(iters):
+                    #probably needed
+                    join_cnt_fifo[0] = 0
                     for _ in range_(iters_outer):
                         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
 
-                        for _ in range_(iters_inner):
-                            elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
+                        for i in range_(iters_inner,insert_yield=True):
+                            #out = None
+                            #with if_(join_cnt_fifo[0]==0, hasElse=False) as if_op:
+                            #    yield ()
+                            current_block = InsertionPoint.current.block
+
                             out = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
-                            call(odd_even, [elem_in, elem_inner, out, tile_ty_size_in])
+                            elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
+                            call(odd_even, [elem_in, elem_inner, out,join_cnt_fifo,output_buffer,join_cnt_buffer, tile_ty_size_in])
+                            of_in_inner.release(ObjectFifoPort.Consume, 1)
+
 
                             of_out1.release(ObjectFifoPort.Produce, 1)
-                            of_in_inner.release(ObjectFifoPort.Consume, 1)
+
 
 
                         of_in1.release(ObjectFifoPort.Consume, 1)
@@ -214,7 +240,7 @@ def external_mem_to_core():
                 dma_free_task(in_task)
                 dma_free_task(out_task)
 
-                    #trace_utils.gen_trace_done_aie2(ShimTile20)
+                #trace_utils.gen_trace_done_aie2(ShimTile20)
 
 
 

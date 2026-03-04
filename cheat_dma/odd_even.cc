@@ -7,24 +7,34 @@
 
 extern "C" {
 
-void odd_even(int32_t *input, int32_t *input1,  int32_t *value,int32_t N) {
+void odd_even(
+   int32_t *input,
+   int32_t *input1,
+   int32_t *object_fifo_buf,
+   int32_t * join_count_fifo,
+   int32_t *buf,
+   int32_t * join_count_buf,
+   int32_t N) {
   event0();
 
 
 
-   int join_count = 0;
+  int join_count = 0;
   for (int i = 0; i < N; i++) {
       for (int j = 0; j < N; j++) {
         if(input[i] == input1[j]){
-            value[join_count] = input[i];
+            object_fifo_buf[join_count] = input[i];
 
         }else{
-            value[join_count] = -1;
+            object_fifo_buf[join_count] = 0;
         }
         join_count++;
+
   }
   event1();
 }
+join_count_fifo[0] = join_count;
+//return 7;
 }
 
 } // extern "C"

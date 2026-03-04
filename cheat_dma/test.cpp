@@ -259,18 +259,18 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         bufInB[i] =   iter +1; //plus one for first iteration
         */
 
-        /*for (int64_t i = 0; i < IN_SIZE; i++)
+        for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   dist(rng);
 
        for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInB[i] =   dist(rng);*/
+        bufInB[i] =   dist(rng);
 
 
-         for (int64_t i = 0; i < IN_SIZE; i++)
+        /* for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   1;
 
        for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInB[i] =   1;
+        bufInB[i] =   1;*/
 
 
       // Zero out buffer bo_outC
@@ -400,26 +400,26 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             //ref.push_back(bufInA[i]);
             map_ref[bufInA[i]] ++;
             }else{
-                map_ref[-1]++;
+                map_ref[0]++;
             }
         }
         }
-        /*std::cout << "\nref:" << std::endl;
+        std::cout << "\nref:" << std::endl;
         for (auto& re :map_ref) {
 
             std::cout << re.first << "  "<< re.second << "\n";
-        }*/
+        }
 
         std::unordered_map<DATATYPE, size_t> result;
         for (uint32_t i = 0; i < OUT_SIZE; i++) {
             result[bufOut[i]] ++;
         }
 
-        /*std::cout << "\nresult:" << std::endl;
+        std::cout << "\nresult:" << std::endl;
         for (auto& re :result) {
 
             std::cout << re.first << "  "<< re.second << "\n";
-        }*/
+        }
 
         if(map_ref==result){
             std::cout << "equal"<< "\n";
