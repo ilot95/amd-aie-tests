@@ -6,11 +6,14 @@ import aie.utils.trace as trace_utils
 
 from aie.dialects.aie import *
 from aie.dialects.aiex import *
+from aie.extras.types import i32
 from aie.helpers.dialects.scf import _for as range_, if_, else_
 from aie.extras.context import mlir_mod_ctx
+from aie.extras.types import index
 
 from aie.ir import *
-
+from aie.dialects import aie, cf, scf, func, memref
+from aie.extras.dialects import arith
 from aie.dialects import cf
 from setuptools.archive_util import extraction_drivers
 
@@ -163,16 +166,60 @@ def external_mem_to_core():
                             #out = None
                             #with if_(join_cnt_fifo[0]==0, hasElse=False) as if_op:
                             #    yield ()
-                            current_block = InsertionPoint.current.block
+                            init_running = arith.constant(1)
+                            cm1 = arith.constant(-1)
 
-                            out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                            wh = scf.WhileOp([i32()],[init_running])
 
-                            elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
-                            call(odd_even, [elem_in, elem_inner, out,join_cnt_fifo,output_buffer,join_cnt_buffer, tile_ty_size_in])
-                            of_in_inner.release(ObjectFifoPort.Consume, 1)
+                            bf = wh.before.blocks.append(init_running.type)
+
+                            af = wh.after.blocks.append(init_running.type)
 
 
-                            of_out1.release(ObjectFifoPort.Produce, 1)
+                            with InsertionPoint(bf):
+                                running = bf.arguments[0]
+
+                                # condition: running != 0
+                                cond = arith.cmpi("ne", running, arith.constant( 0))
+
+                                # scf.condition returns the condition + loop-carried values
+                                scf.condition(cond, [init_running])
+
+                            with InsertionPoint(af):
+                                #running = af.arguments[0]
+
+                                # Acquire FIFO element
+                                out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+
+                                idx0 = arith.constant( 0,index=True)
+                                val = memref.load(elem_in, [idx0])
+
+                                # Compute next running: break if sentinel -1
+                                is_stop = arith.cmpi("eq", val, cm1)
+                                next_running = arith.select(is_stop, arith.constant( 0), arith.constant(1))
+
+                                # Increment value and store
+                                #result = arith.addi(val, c1)
+                                #memref.store(result, elem, [idx0])
+
+                                # Release FIFO
+                                of_out1.release(ObjectFifoPort.Produce, 1)
+
+                                # Yield updated loop-carried values
+                                scf.yield_([next_running])
+
+
+
+
+
+                            # out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                            #
+                            # elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
+                            # call(odd_even, [elem_in, elem_inner, out,join_cnt_fifo,output_buffer,join_cnt_buffer, tile_ty_size_in])
+                            # of_in_inner.release(ObjectFifoPort.Consume, 1)
+                            #
+                            #
+                            # of_out1.release(ObjectFifoPort.Produce, 1)
 
 
 
@@ -245,7 +292,7 @@ def external_mem_to_core():
 
 
 
-
+    res = True
     res = ctx.module.operation.verify()
     if res == True:
         print(ctx.module)
