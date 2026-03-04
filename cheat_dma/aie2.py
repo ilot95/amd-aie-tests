@@ -157,24 +157,31 @@ def external_mem_to_core():
             @core(ComputeTile02, "odd_even.o")
             def core_body_02():
                 for _ in range_(0xFFFFFFFF):
+
+                    #stack allocation
+                    #counter = memref.alloca([1], i32())
                     #probably needed
                     join_cnt_fifo[0] = 0
                     for _ in range_(iters_outer):
                         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
 
                         for i in range_(iters_inner,insert_yield=True):
-                            #out = None
+                            elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
+
+                            out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+
                             #with if_(join_cnt_fifo[0]==0, hasElse=False) as if_op:
                             #    yield ()
+
+
+
+                            cm1 = arith.constant(0)
+                            join_cnt_buffer[0] = arith.constant(100)
+
                             init_running = arith.constant(1)
-                            cm1 = arith.constant(-1)
-
                             wh = scf.WhileOp([i32()],[init_running])
-
                             bf = wh.before.blocks.append(init_running.type)
-
                             af = wh.after.blocks.append(init_running.type)
-
 
                             with InsertionPoint(bf):
                                 running = bf.arguments[0]
@@ -189,27 +196,33 @@ def external_mem_to_core():
                                 #running = af.arguments[0]
 
                                 # Acquire FIFO element
-                                out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+
 
                                 idx0 = arith.constant( 0,index=True)
-                                val = memref.load(elem_in, [idx0])
+                                val = memref.load(join_cnt_buffer, [idx0])
 
                                 # Compute next running: break if sentinel -1
                                 is_stop = arith.cmpi("eq", val, cm1)
                                 next_running = arith.select(is_stop, arith.constant( 0), arith.constant(1))
 
+                                join_cnt_buffer[0] = join_cnt_buffer[0] - 1
+
+                                call(odd_even, [elem_in, elem_inner, out, join_cnt_fifo, output_buffer, join_cnt_buffer,
+                                                tile_ty_size_in])
+
                                 # Increment value and store
+                                # dont know what this does
                                 #result = arith.addi(val, c1)
                                 #memref.store(result, elem, [idx0])
 
                                 # Release FIFO
-                                of_out1.release(ObjectFifoPort.Produce, 1)
+
 
                                 # Yield updated loop-carried values
                                 scf.yield_([next_running])
 
-
-
+                            of_in_inner.release(ObjectFifoPort.Consume, 1)
+                            of_out1.release(ObjectFifoPort.Produce, 1)
 
 
                             # out = of_out1.acquire(ObjectFifoPort.Produce, 1)
