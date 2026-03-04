@@ -178,7 +178,7 @@ def external_mem_to_core():
                             cm1 = arith.constant(0)
                             join_cnt_buffer[0] = arith.constant(1)
 
-                            init_running = arith.constant(1)
+                            init_running = arith.constant(1000)
                             wh = scf.WhileOp([i32()],[init_running])
                             bf = wh.before.blocks.append(init_running.type)
                             af = wh.after.blocks.append(init_running.type)
@@ -190,22 +190,22 @@ def external_mem_to_core():
                                 cond = arith.cmpi("ne", running, arith.constant( 0))
 
                                 # scf.condition returns the condition + loop-carried values
-                                scf.condition(cond, [init_running])
+                                scf.condition(cond, [running])
 
                             with InsertionPoint(af):
-                                #running = af.arguments[0]f
+                                running = af.arguments[0]
 
                                 # Acquire FIFO element
 
-                                idx0 = arith.constant( 0,index=True)
-                                val = memref.load(join_cnt_buffer, [idx0])
+                                #idx0 = arith.constant( 0,index=True)
+                                #val = memref.load(join_cnt_buffer, [idx0])
 
                                 # Compute next running: break if sentinel 0
-                                is_stop = arith.cmpi("eq", val, cm1)
-                                next_running = arith.select(is_stop, arith.constant( 0), arith.constant(1))
+                                #is_stop = arith.cmpi("eq", val, cm1)
+                                #next_running = arith.select(is_stop, arith.constant( 0), arith.constant(1))
 
                                 #This seems to work
-                                join_cnt_buffer[0] = join_cnt_buffer[0] - 1
+                                #join_cnt_buffer[0] = join_cnt_buffer[0] - 1
                                 call(odd_even, [elem_in, elem_inner, out, join_cnt_fifo, output_buffer, join_cnt_buffer,
                                                 tile_ty_size_in])
 
@@ -215,6 +215,7 @@ def external_mem_to_core():
                                 #memref.store(result, elem, [idx0])
 
                                 # Yield updated loop-carried values
+                                next_running = arith.subi(running, arith.constant(1))
                                 scf.yield_([next_running])
 
                             of_in_inner.release(ObjectFifoPort.Consume, 1)
