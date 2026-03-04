@@ -142,13 +142,13 @@ def external_mem_to_core():
             join_cnt = aie.buffer(
                 tile=ComputeTile02,
                 datatype=ty_one_int,
-                name=f"join_cnt_fifo",
+                name=f"join_cnt",
                 initial_value=np.array(0, dtype=np.int32)
             )
             global_join_cnt = aie.buffer(
                 tile=ComputeTile02,
                 datatype=ty_one_int,
-                name=f"join_cnt_buffer",
+                name=f"global_join_cnt",
                 initial_value=np.array(0, dtype=np.int32)
             )
 
@@ -177,9 +177,9 @@ def external_mem_to_core():
 
 
 
-                            init_i = arith.constant(0)
-                            init_j = arith.constant(0)
-                            wh = scf.WhileOp([i32(),i32()],[init_i,init_j])
+                            init_i = arith.constant(0,index= True)
+                            init_j = arith.constant(0,index= True)
+                            wh = scf.WhileOp([IndexType.get(),IndexType.get()],[init_i,init_j])
                             bf = wh.before.blocks.append(init_i.type,init_j.type)
                             af = wh.after.blocks.append(init_i.type,init_j.type)
 
@@ -189,7 +189,7 @@ def external_mem_to_core():
 
                                 # condition: running != 0
                                 #
-                                cond = arith.cmpi("eq", running_i, arith.constant(64))
+                                cond = arith.cmpi("ne", running_i, arith.constant(tile_ty_size_in,type=i32(),index= True))
 
                                 # scf.condition returns the condition + loop-carried values
                                 scf.condition(cond, [running_i,running_j])
@@ -210,22 +210,22 @@ def external_mem_to_core():
                                 #This seems to work
                                 #join_cnt_buffer[0] = join_cnt_buffer[0] - 1
 
+                                elem_in_i= elem_in[i]
 
-
-                                with if_(elem_in[i] == elem_inner[j]):
-                                    output_buffer[join_cnt[0]] = elem_in[i]
-                                    join_cnt[0] = join_cnt[0] + 1
+                                with if_(elem_in_i == elem_inner[j]):
+                                    jc = join_cnt[0]
+                                    output_buffer[jc] = elem_in_i
+                                    join_cnt[0] = jc + 1
                                     global_join_cnt[0] = global_join_cnt[0] + 1
 
                                 #chek if buffer full
                                 #todo think of last iteration
                                 with if_(join_cnt[0] == tile_ty_size_out):
                                     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                                    for z in range_(iters_inner, insert_yield=True):
+                                    for z in range_(tile_ty_size_out):
                                         out[z] = output_buffer[z]
                                     of_out1.release(ObjectFifoPort.Produce, 1)
                                     join_cnt[0] = 0
-
 
                                 # Increment value and store
                                 # dont know what this does
@@ -233,12 +233,12 @@ def external_mem_to_core():
                                 #memref.store(result, elem, [idx0])
 
                                 # Yield updated loop-carried values
-                                next_running_j = arith.addi(j, arith.constant(1))
+                                next_running_j = arith.addi(j, arith.constant(1,type=i32(),index= True))
                                 #next_running_i_maybe = arith.addi(i, arith.constant(1))
-                                cmp = arith.cmpi("eq", next_running_j, arith.constant(64))
-                                next_running_j = arith.select(cmp, arith.constant(0), next_running_j)
+                                cmp = arith.cmpi("eq", next_running_j, arith.constant(64,type=i32(),index= True))
+                                next_running_j = arith.select(cmp, arith.constant(0,type=i32(),index= True), next_running_j)
 
-                                next_running_i = arith.select(cmp, j+1, i)
+                                next_running_i = arith.select(cmp, i+1, i)
 
 
 

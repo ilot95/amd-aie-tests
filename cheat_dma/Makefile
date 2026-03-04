@@ -78,7 +78,7 @@ endif
 #--dynamic-objFifos  --no-xchesscc  --no-xbridge    --xchesscc --xbridge -v
 build_peano/final.xclbin: build_mlir/aie.mlir build_peano/odd_even.o
 	mkdir -p ${@D}
-	cd ${@D} && aiecc.py --aie-generate-xclbin  --no-compile-host --xclbin-name=${@F} \
+	cd ${@D} && aiecc.py --aie-generate-xclbin  --dynamic-objFifos --no-compile-host --xclbin-name=${@F} \
 				--no-xchesscc --no-xbridge  \
 				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
 
