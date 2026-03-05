@@ -177,6 +177,8 @@ def external_mem_to_core():
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
 
 
+                            i32()
+                            #MemRefValue(%35, memref<2048xi32>)
 
                             init_i = arith.constant(0,index= True)
                             init_j = arith.constant(0,index= True)
@@ -217,23 +219,25 @@ def external_mem_to_core():
                                     jc = join_cnt[0]
                                     output_buffer[jc] = elem_in_i
                                     join_cnt[0] = jc + 1
-
+                                    #global_join_cnt[0] = global_join_cnt[0] + 1
 
                                 #chek if buffer full
                                 #last iteration is handled later
-
+                                outs = []
 
                                 with if_((join_cnt[0] == tile_ty_size_out) ):
-                                    out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                                    outs.insert(1, of_out1.acquire(ObjectFifoPort.Produce, 1))
+
+                                    eprint(outs)
                                     #todo get rid of this copy it is expensive
                                     call(passThroughLine,
-                                         [output_buffer, out, tile_ty_size_out])
+                                         [output_buffer, outs[0], tile_ty_size_out])
 
                                     #for z in range_(tile_ty_size_out):
                                     #    out[z] = output_buffer[z]
                                     of_out1.release(ObjectFifoPort.Produce, 1)
                                     join_cnt[0] = 0
-                                    global_join_cnt[0] = global_join_cnt[0] + 1
+
 
                                 # Increment value and store
                                 # dont know what this does
