@@ -73,7 +73,7 @@ def external_mem_to_core():
             # elements = 4096
 
             tile_ty_size_in = 64
-            tile_ty_size_out = tile_ty_size_in
+            tile_ty_size_out = 2*tile_ty_size_in
 
             eprint("[INFO] tile_ty_size_in: {}".format(tile_ty_size_in))
             eprint("[INFO] tile_ty_size_out: {}".format(tile_ty_size_out))
@@ -168,27 +168,27 @@ def external_mem_to_core():
                     # probably needed
                     #memref_type for output fifo
                     elem_memref_type = types.memref(tile_ty_size_out, i32())
+                    eprint(elem_memref_type)
                     join_cnt[0] = 0
                     global_join_cnt[0] = 0
                     firstout = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
-                    for _ in range_(iters_outer):
+                    # only for safety
+                    #for z in range_(0, tile_ty_size_out, 1):
+                    #    firstout[z] = 0
+
+                    for _,current_out_outer,final_final_out in range_(iters_outer,iter_args=[firstout],insert_yield=False):
                         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
 
-                        # , current_out, final_out
-                        elem_memref_type
-                        a = arith.constant(0)
-                        for i, current_out, final_out in range_(iters_inner, iter_args=[a], insert_yield=False):
+
+                        for _, current_out, final_out in range_(iters_inner, iter_args=[current_out_outer], insert_yield=False):
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
-
-                            # MemRefValue(%35, memref<2048xi32>)
-
 
                             init_i = arith.constant(0, index=True)
                             init_j = arith.constant(0, index=True)
 
                             wh = scf.WhileOp([IndexType.get(), IndexType.get(), elem_memref_type],
-                                             [init_i, init_j, firstout])
+                                             [init_i, init_j, current_out])
                             bf = wh.before.blocks.append(init_i.type, init_j.type, elem_memref_type)
                             af = wh.after.blocks.append(init_i.type, init_j.type, elem_memref_type)
 
@@ -233,7 +233,7 @@ def external_mem_to_core():
 
                                 # elem_memref_type = MemRefType.get([tile_ty_size_out], i32())
 
-                                eprint(elem_memref_type)
+
                                 # Build the condition
                                 cond = arith.cmpi("eq", join_cnt[0],
                                                   arith.constant(tile_ty_size_out, type=i32()))
@@ -244,10 +244,14 @@ def external_mem_to_core():
                                 # ---- THEN block: buffer is full → release old, acquire new ----
                                 with InsertionPoint(if_op.then_block):
                                     of_out1.release(ObjectFifoPort.Produce, 1)
+                                    #todo make join_cnt a stack or register variable
                                     join_cnt[0] = 0
                                     global_join_cnt[0] = global_join_cnt[0] + 1
                                     # todo dont aquire on last loop
                                     new_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                                    #only for safety
+                                    #for z in range_(0, tile_ty_size_out, 1):
+                                    #    new_out[z] = 0
                                     yield_([new_out])
 
                                 # ---- ELSE block: buffer not full → keep current buffer ----
@@ -282,33 +286,28 @@ def external_mem_to_core():
 
                                 scf.yield_([next_running_i, next_running_j, ifres])
                             of_in_inner.release(ObjectFifoPort.Consume, 1)
-                            scf.yield_([a])
-                            #scf.yield_([wh.results[2]])
+                            scf.yield_([wh.results[2]])
 
                         of_in1.release(ObjectFifoPort.Consume, 1)
+                        scf.yield_([final_out])
 
-                    # with if_(join_cnt[0]>0):
-                    # todo zero rest of tensor maybe do it in the loop as we have no ref to out
-                    # for z in range_(tile_ty_size_out):
-                    #    out[z] =0
 
-                    # todo maybe dont do this if last loop was full
+                    #zero rest of tensor
+                    for z in range_(join_cnt[0],tile_ty_size_out,1):
+                        final_final_out[z] =0
+
+                    # todo maybe dont do this if last loop was full or leave it and change the loop
                     of_out1.release(ObjectFifoPort.Produce, 1)
                     join_cnt[0] = 0
-                    # push out data if needed if some left
-                    # with if_(join_cnt[0]>0):
-                    #     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                    #     #todo loop less
-                    #     for z in range_(tile_ty_size_out):
-                    #         out[z] =0
-                    #
-                    #     #does not work here because of loop unrolling?
-                    #     #call(passThroughLine,
-                    #     #     [output_buffer, out, join_cnt[0]])
-                    #     #for z in range_(join_cnt[0]):
-                    #     #    out[z] = output_buffer[z]
+
+                    #some extra aquire releases
+                    # for _ in range_(0, 200, 1):
+                    #     oo = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                    #     for z in range_(0,tile_ty_size_out,1):
+                    #         oo[z] =0
                     #     of_out1.release(ObjectFifoPort.Produce, 1)
-                    #     join_cnt[0] = 0
+
+
 
                     elem_done = of_done.acquire(ObjectFifoPort.Produce, 1)
                     for i in range_(16):
@@ -342,7 +341,7 @@ def external_mem_to_core():
                 in_task = shim_dma_single_bd_task(of_in1, inTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_in],
                                                   issue_token=False)
                 out_task = shim_dma_single_bd_task(
-                    of_out1, outOddTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=False
+                    of_out1, outOddTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=False, burst_length=64
                 )
 
                 done_task = shim_dma_single_bd_task(

@@ -432,12 +432,21 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         }else{
             std::cout << "not equal"<< "\n";
 
-            auto it = map_ref.begin();
+            auto it_ref = map_ref.begin();
+            auto it_res = result.begin();
             for (size_t i =0;i<map_ref.size();i++) {
 
+                if(it_ref != map_ref.end() && it_res !=  result.end()){
+                    if(it_ref->first ==it_res->first){
+                     std::cout << it_ref->first << "  "<< it_ref->second <<  "  "<< it_res->first << "  "<< it_res->second <<"\n";
+                     it_ref++;
+                     it_res++;
+                    }
+                    //todo wirte rest
+                }
 
-             std::cout << it->first << "  "<< it->second << "\n";
-             it++;
+
+
             }
 
             std::cout << "map_ref.size(): "<< map_ref.size() << " result.size() "<< result.size() << "\n";
