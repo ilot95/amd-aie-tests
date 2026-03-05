@@ -326,6 +326,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
       int32_t test = bufDone[i];
       std::cout << test << " ";
     }
+    std::cout  << "\n";
 
 
     if (trace_size > 0)
@@ -375,8 +376,9 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
 
 
         std::vector<DATATYPE> ref;
-        std::map<DATATYPE, size_t> map_ref;
-        //map_ref.reserve(OUT_SIZE);
+        //use map if you want it sorted
+        std::unordered_map<DATATYPE, size_t> map_ref;
+        map_ref.reserve(OUT_SIZE);
         ref.reserve(OUT_SIZE);
         auto start = std::chrono::high_resolution_clock::now();
         for (uint32_t i = 0; i < IN_SIZE; i++) {
@@ -405,29 +407,30 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             }
         }
         }
+        /*
         std::cout << "\nref:" << std::endl;
         for (auto& re :map_ref) {
 
             std::cout << re.first << "  "<< re.second << "\n";
-        }
-
-        std::map<DATATYPE, size_t> result;
+        }*/
+        //use map if you want it sorted
+        std::unordered_map<DATATYPE, size_t> result;
         for (uint32_t i = 0; i < OUT_SIZE; i++) {
             result[bufOut[i]] ++;
         }
 
-        std::cout << "\nresult:" << std::endl;
+        /*std::cout << "\nresult:" << std::endl;
         for (auto& re :result) {
 
             std::cout << re.first << "  "<< re.second << "\n";
-        }
+        }*/
 
         if(map_ref==result){
             std::cout << "equal"<< "\n";
         }else{
             std::cout << "not equal"<< "\n";
 
-            auto it = map_ref.begin();
+            /*auto it = map_ref.begin();
             for (size_t i =0;i<map_ref.size();i++) {
 
 
@@ -436,7 +439,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             }
 
             std::cout << "map_ref.size(): "<< map_ref.size() << " result.size() "<< result.size() << "\n";
-
+*/
 
             errors++;
         }

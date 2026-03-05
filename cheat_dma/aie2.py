@@ -169,12 +169,6 @@ def external_mem_to_core():
                         for _ in range_(iters_inner,insert_yield=True):
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
 
-                            #out = of_out1.acquire(ObjectFifoPort.Produce, 1)
-
-                            #with if_(join_cnt_fifo[0]==0, hasElse=False) as if_op:
-                            #    yield ()
-
-
 
 
                             init_i = arith.constant(0,index= True)
@@ -219,8 +213,8 @@ def external_mem_to_core():
 
 
                                 #chek if buffer full
-                                #todo think of last iteration
-                                #|| (i==63 && j==63)
+                                #last iteration is handled later
+
 
                                 with if_((join_cnt[0] == tile_ty_size_out) ):
                                     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
@@ -257,11 +251,8 @@ def external_mem_to_core():
                         of_in1.release(ObjectFifoPort.Consume, 1)
 
 
-                    # for z in range_(64):
-                    #     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                    #
-                    #     of_out1.release(ObjectFifoPort.Produce, 1)
 
+                    #push out data if needed if some left
                     with if_(join_cnt[0]>0):
                         out = of_out1.acquire(ObjectFifoPort.Produce, 1)
                         #todo loop less
