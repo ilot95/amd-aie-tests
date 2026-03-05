@@ -69,8 +69,8 @@ def external_mem_to_core():
 
             #elements = 4096
 
-            tile_ty_size_in = 64
-            tile_ty_size_out = tile_ty_size_in * tile_ty_size_in
+            tile_ty_size_in = 128
+            tile_ty_size_out = tile_ty_size_in * 4
 
             eprint("[INFO] tile_ty_size_in: {}".format(tile_ty_size_in))
             eprint("[INFO] tile_ty_size_out: {}".format(tile_ty_size_out))
@@ -232,7 +232,7 @@ def external_mem_to_core():
                                 # Yield updated loop-carried values
                                 next_running_j = arith.addi(j, arith.constant(1,type=i32(),index= True))
                                 #next_running_i_maybe = arith.addi(i, arith.constant(1))
-                                cmp = arith.cmpi("eq", next_running_j, arith.constant(64,type=i32(),index= True))
+                                cmp = arith.cmpi("eq", next_running_j, arith.constant(tile_ty_size_in,type=i32(),index= True))
                                 next_running_j = arith.select(cmp, arith.constant(0,type=i32(),index= True), next_running_j)
 
                                 next_running_i = arith.select(cmp, i+1, i)
