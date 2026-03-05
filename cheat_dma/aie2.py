@@ -7,6 +7,8 @@ import aie.utils.trace as trace_utils
 from aie.dialects.aie import *
 from aie.dialects.aiex import *
 from aie.extras.types import i32
+from aie.extras.types import memref
+import aie.extras.types as types
 from aie.helpers.dialects.scf import _for as range_, if_, else_
 from aie.extras.context import mlir_mod_ctx
 from aie.extras.types import index
@@ -19,10 +21,12 @@ from setuptools.archive_util import extraction_drivers
 
 from aie.dialects.scf import IfOp, ForOp, yield_
 
-#use stderr so the mlir output does not break
-#These are don't have to be errors
+
+# use stderr so the mlir output does not break
+# These are don't have to be errors
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
+
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "npu":
@@ -38,7 +42,8 @@ if len(sys.argv) > 2:
         trace_size = int(sys.argv[2])
         eprint("[INFO] trace_size: {}".format(trace_size))
     else:
-        eprint("[Info] sys.argv[2] (trace_size):{} is not a positive number falling back to trace_size = 0".format(sys.argv[2]))
+        eprint("[Info] sys.argv[2] (trace_size):{} is not a positive number falling back to trace_size = 0".format(
+            sys.argv[2]))
 
 host_elements = 1024
 if len(sys.argv) > 3:
@@ -46,8 +51,9 @@ if len(sys.argv) > 3:
         host_elements = int(sys.argv[3])
         eprint("[INFO] host_elements: {}".format(host_elements))
     else:
-        eprint("[Info] sys.argv[3] (host_elements):{} is not a positive number falling back to host_elements = 1024".format(sys.argv[3]))
-
+        eprint(
+            "[Info] sys.argv[3] (host_elements):{} is not a positive number falling back to host_elements = 1024".format(
+                sys.argv[3]))
 
 
 def external_mem_to_core():
@@ -57,27 +63,24 @@ def external_mem_to_core():
         def device_body():
 
             tranfer_size_elemnts_in = host_elements
-            tranfer_size_elemnts_out = (host_elements*host_elements)
-
+            tranfer_size_elemnts_out = (host_elements * host_elements)
 
             eprint("[INFO] tranfer_size_elemnts_in: {}".format(tranfer_size_elemnts_in))
             eprint("[INFO] tranfer_size_elemnts_out: {}".format(tranfer_size_elemnts_out))
 
+            # eprint("[INFO] transfer size in KB: {}".format(tranfer_size_elemnts_in*4/1024))
 
-            #eprint("[INFO] transfer size in KB: {}".format(tranfer_size_elemnts_in*4/1024))
+            # elements = 4096
 
-
-            #elements = 4096
-
-            tile_ty_size_in =2048
+            tile_ty_size_in = 64
             tile_ty_size_out = tile_ty_size_in
 
             eprint("[INFO] tile_ty_size_in: {}".format(tile_ty_size_in))
             eprint("[INFO] tile_ty_size_out: {}".format(tile_ty_size_out))
 
-            #todo fix for A B different sizes
+            # todo fix for A B different sizes
             iters_outer = host_elements // tile_ty_size_in
-            #one relation needs to be pushed several times
+            # one relation needs to be pushed several times
             transfers_inner = iters_outer
 
             # todo fix for A B different sizes
@@ -88,11 +91,10 @@ def external_mem_to_core():
 
             eprint("[INFO] transfers_inner: {}".format(transfers_inner))
 
-
             tile_ty_in = np.ndarray[(tile_ty_size_in,), np.dtype[np.int32]]
             tile_ty_out = np.ndarray[(tile_ty_size_out,), np.dtype[np.int32]]
 
-            #buffer_ty = np.ndarray[(elements,), np.dtype[np.int32]]
+            # buffer_ty = np.ndarray[(elements,), np.dtype[np.int32]]
 
             data_ty_in = np.ndarray[(tranfer_size_elemnts_in,), np.dtype[np.int32]]
             data_ty_out = np.ndarray[(tranfer_size_elemnts_out,), np.dtype[np.int32]]
@@ -104,7 +106,7 @@ def external_mem_to_core():
             # External, binary kernel definition
             odd_even = external_func(
                 "odd_even",
-                inputs=[tile_ty_in, tile_ty_in,tile_ty_out,data_ty_one_int,tile_ty_out,data_ty_one_int,np.int32]
+                inputs=[tile_ty_in, tile_ty_in, tile_ty_out, data_ty_one_int, tile_ty_out, data_ty_one_int, np.int32]
             )
 
             passThroughLine = external_func(
@@ -112,25 +114,21 @@ def external_mem_to_core():
                 inputs=[tile_ty_out, tile_ty_out, np.int32]
             )
 
-
-
             # Tile declarations
             ShimTile00 = tile(0, 0)
-            #ShimTile10 = tile(1, 0)
+            # ShimTile10 = tile(1, 0)
             ShimTile20 = tile(2, 0)
-            #MemTile01 = tile(0, 1)
-            #MemTile11 = tile(1, 1)
+            # MemTile01 = tile(0, 1)
+            # MemTile11 = tile(1, 1)
             ComputeTile02 = tile(0, 2)
-            #ComputeTile12 = tile(1, 2)
+            # ComputeTile12 = tile(1, 2)
 
             # AIE-array data movement with object fifos
             # Input
-            #of_in = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
+            # of_in = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
             of_in1 = object_fifo("in1", ShimTile00, ComputeTile02, 2, tile_ty_in)
             of_in_inner = object_fifo("in1_inner", ShimTile00, ComputeTile02, 2, tile_ty_in)
-            #object_fifo_link(of_in, of_in1)
-
-
+            # object_fifo_link(of_in, of_in1)
 
             # Output
 
@@ -138,12 +136,12 @@ def external_mem_to_core():
 
             of_done = object_fifo("outdone", ComputeTile02, ShimTile00, 2, data_ty_done)
 
-            output_buffer = aie.buffer(
-                tile=ComputeTile02,
-                datatype=tile_ty_out,
-                name=f"outputbuffer",
-                initial_value=np.array(0, dtype=np.int32)
-            )
+            # output_buffer = aie.buffer(
+            #     tile=ComputeTile02,
+            #     datatype=tile_ty_out,
+            #     name=f"outputbuffer",
+            #     initial_value=np.array(0, dtype=np.int32)
+            # )
 
             ty_one_int = np.ndarray[(1,), np.dtype[np.int32]]
             join_cnt = aie.buffer(
@@ -165,190 +163,206 @@ def external_mem_to_core():
             def core_body_02():
                 for _ in range_(0xFFFFFFFF):
 
-                    #stack allocation
-                    #counter = memref.alloca([1], i32())
-                    #probably needed
+                    # stack allocation
+                    # counter = memref.alloca([1], i32())
+                    # probably needed
+                    #memref_type for output fifo
+                    elem_memref_type = types.memref(tile_ty_size_out, i32())
                     join_cnt[0] = 0
                     global_join_cnt[0] = 0
+                    firstout = of_out1.acquire(ObjectFifoPort.Produce, 1)
+
                     for _ in range_(iters_outer):
                         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
 
-                        for _ in range_(iters_inner):
+                        # , current_out, final_out
+                        elem_memref_type
+                        a = arith.constant(0)
+                        for i, current_out, final_out in range_(iters_inner, iter_args=[a], insert_yield=False):
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
 
+                            # MemRefValue(%35, memref<2048xi32>)
 
-                            i32()
-                            #MemRefValue(%35, memref<2048xi32>)
 
-                            init_i = arith.constant(0,index= True)
-                            init_j = arith.constant(0,index= True)
-                            wh = scf.WhileOp([IndexType.get(),IndexType.get()],[init_i,init_j])
-                            bf = wh.before.blocks.append(init_i.type,init_j.type)
-                            af = wh.after.blocks.append(init_i.type,init_j.type)
+                            init_i = arith.constant(0, index=True)
+                            init_j = arith.constant(0, index=True)
+
+                            wh = scf.WhileOp([IndexType.get(), IndexType.get(), elem_memref_type],
+                                             [init_i, init_j, firstout])
+                            bf = wh.before.blocks.append(init_i.type, init_j.type, elem_memref_type)
+                            af = wh.after.blocks.append(init_i.type, init_j.type, elem_memref_type)
 
                             with InsertionPoint(bf):
                                 running_i = bf.arguments[0]
                                 running_j = bf.arguments[1]
-
+                                running_out = bf.arguments[2]
                                 # condition: running != 0
                                 #
-                                cond = arith.cmpi("ne", running_i, arith.constant(tile_ty_size_in,type=i32(),index= True))
+                                cond = arith.cmpi("ne", running_i,
+                                                  arith.constant(tile_ty_size_in, type=i32(), index=True))
 
                                 # scf.condition returns the condition + loop-carried values
-                                scf.condition(cond, [running_i,running_j])
+                                scf.condition(cond, [running_i, running_j, running_out])
 
                             with InsertionPoint(af):
                                 i = af.arguments[0]
                                 j = af.arguments[1]
-
+                                out = af.arguments[2]
                                 # Acquire FIFO element
 
-                                #idx0 = arith.constant( 0,index=True)
-                                #val = memref.load(join_cnt_buffer, [idx0])
+                                # idx0 = arith.constant( 0,index=True)
+                                # val = memref.load(join_cnt_buffer, [idx0])
 
                                 # Compute next running: break if sentinel 0
-                                #is_stop = arith.cmpi("eq", val, cm1)
-                                #next_running = arith.select(is_stop, arith.constant( 0), arith.constant(1))
+                                # is_stop = arith.cmpi("eq", val, cm1)
+                                # next_running = arith.select(is_stop, arith.constant( 0), arith.constant(1))
 
-                                #This seems to work
-                                #join_cnt_buffer[0] = join_cnt_buffer[0] - 1
+                                # This seems to work
+                                # join_cnt_buffer[0] = join_cnt_buffer[0] - 1
 
-                                elem_in_i= elem_in[i]
+                                elem_in_i = elem_in[i]
 
                                 with if_(elem_in_i == elem_inner[j]):
                                     jc = join_cnt[0]
-                                    output_buffer[jc] = elem_in_i
+                                    out[jc] = elem_in_i
                                     join_cnt[0] = jc + 1
-                                    #global_join_cnt[0] = global_join_cnt[0] + 1
+                                    # global_join_cnt[0] = global_join_cnt[0] + 1
 
-                                #chek if buffer full
-                                #last iteration is handled later
-                                outs = []
+                                # chek if buffer full
+                                # last iteration is handled later
 
-                                with if_((join_cnt[0] == tile_ty_size_out) ):
-                                    outs.insert(1, of_out1.acquire(ObjectFifoPort.Produce, 1))
+                                # elem_memref_type = MemRefType.get([tile_ty_size_out], i32())
 
-                                    eprint(outs)
-                                    #todo get rid of this copy it is expensive
-                                    call(passThroughLine,
-                                         [output_buffer, outs[0], tile_ty_size_out])
+                                eprint(elem_memref_type)
+                                # Build the condition
+                                cond = arith.cmpi("eq", join_cnt[0],
+                                                  arith.constant(tile_ty_size_out, type=i32()))
 
-                                    #for z in range_(tile_ty_size_out):
-                                    #    out[z] = output_buffer[z]
+                                # Create an scf.if that RETURNS a memref result
+                                if_op = scf.IfOp(cond, [elem_memref_type], hasElse=True)
+
+                                # ---- THEN block: buffer is full → release old, acquire new ----
+                                with InsertionPoint(if_op.then_block):
                                     of_out1.release(ObjectFifoPort.Produce, 1)
                                     join_cnt[0] = 0
+                                    global_join_cnt[0] = global_join_cnt[0] + 1
+                                    # todo dont aquire on last loop
+                                    new_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                                    yield_([new_out])
 
+                                # ---- ELSE block: buffer not full → keep current buffer ----
+                                with InsertionPoint(if_op.else_block):
+                                    yield_([out])  # pass through the existing buffer unchanged
 
-                                # Increment value and store
-                                # dont know what this does
-                                #result = arith.addi(val, c1)
-                                #memref.store(result, elem, [idx0])
+                                # The result of the if_op is the (possibly new) output buffer
+                                ifres = if_op.results[0]
+
+                                # with if_((join_cnt[0] == tile_ty_size_out) ):
+                                #     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                                #
+                                #     eprint(out)
+                                #     #todo get rid of this copy it is expensive
+                                #     call(passThroughLine,
+                                #          [output_buffer, out, tile_ty_size_out])
+                                #
+                                #     #for z in range_(tile_ty_size_out):
+                                #     #    out[z] = output_buffer[z]
+                                #     of_out1.release(ObjectFifoPort.Produce, 1)
+                                #     join_cnt[0] = 0
 
                                 # Yield updated loop-carried values
-                                next_running_j = arith.addi(j, arith.constant(1,type=i32(),index= True))
-                                #next_running_i_maybe = arith.addi(i, arith.constant(1))
-                                cmp = arith.cmpi("eq", next_running_j, arith.constant(tile_ty_size_in,type=i32(),index= True))
-                                next_running_j = arith.select(cmp, arith.constant(0,type=i32(),index= True), next_running_j)
+                                next_running_j = arith.addi(j, arith.constant(1, type=i32(), index=True))
+                                # next_running_i_maybe = arith.addi(i, arith.constant(1))
+                                cmp = arith.cmpi("eq", next_running_j,
+                                                 arith.constant(tile_ty_size_in, type=i32(), index=True))
+                                next_running_j = arith.select(cmp, arith.constant(0, type=i32(), index=True),
+                                                              next_running_j)
 
-                                next_running_i = arith.select(cmp, i+1, i)
+                                next_running_i = arith.select(cmp, i + 1, i)
 
-
-
-
-                                scf.yield_([next_running_i,next_running_j])
-
+                                scf.yield_([next_running_i, next_running_j, ifres])
                             of_in_inner.release(ObjectFifoPort.Consume, 1)
-
-                            # call(odd_even, [elem_in, elem_inner, out,join_cnt_fifo,output_buffer,join_cnt_buffer, tile_ty_size_in])
-
-
+                            scf.yield_([a])
+                            #scf.yield_([wh.results[2]])
 
                         of_in1.release(ObjectFifoPort.Consume, 1)
 
+                    # with if_(join_cnt[0]>0):
+                    # todo zero rest of tensor maybe do it in the loop as we have no ref to out
+                    # for z in range_(tile_ty_size_out):
+                    #    out[z] =0
 
+                    # todo maybe dont do this if last loop was full
+                    of_out1.release(ObjectFifoPort.Produce, 1)
+                    join_cnt[0] = 0
+                    # push out data if needed if some left
+                    # with if_(join_cnt[0]>0):
+                    #     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                    #     #todo loop less
+                    #     for z in range_(tile_ty_size_out):
+                    #         out[z] =0
+                    #
+                    #     #does not work here because of loop unrolling?
+                    #     #call(passThroughLine,
+                    #     #     [output_buffer, out, join_cnt[0]])
+                    #     #for z in range_(join_cnt[0]):
+                    #     #    out[z] = output_buffer[z]
+                    #     of_out1.release(ObjectFifoPort.Produce, 1)
+                    #     join_cnt[0] = 0
 
-                    #push out data if needed if some left
-                    with if_(join_cnt[0]>0):
-                        out = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                        #todo loop less
-                        for z in range_(tile_ty_size_out):
-                            out[z] =0
-
-                        #does not work here because of loop unrolling?
-                        #call(passThroughLine,
-                        #     [output_buffer, out, join_cnt[0]])
-                        for z in range_(join_cnt[0]):
-                            out[z] = output_buffer[z]
-                        of_out1.release(ObjectFifoPort.Produce, 1)
-                        join_cnt[0] = 0
-
-                    elem_done = of_done.acquire(ObjectFifoPort.Produce,1)
+                    elem_done = of_done.acquire(ObjectFifoPort.Produce, 1)
                     for i in range_(16):
                         elem_done[i] = global_join_cnt[0]
                     elem_done[0] = join_cnt[0]
                     of_done.release(ObjectFifoPort.Produce, 1)
 
-
-
-
-
-
             tiles_to_trace = [ComputeTile02, ShimTile00]
             if trace_size > 0:
                 trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
-                #todo use other shimtile to trace?
-
-
+                # todo use other shimtile to trace?
 
             # To/from AIE-array data movement
-            #d
+            # d
 
-            #tiles_to_trace = [ComputeTile02, MemTile01, ShimTile00]
-            #if trace_size > 0:
+            # tiles_to_trace = [ComputeTile02, MemTile01, ShimTile00]
+            # if trace_size > 0:
             #    trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
 
-            @runtime_sequence(data_ty_in, data_ty_in,data_ty_out,data_ty_done)
-            def sequence(inTensor,innerinTensor,outOddTensor,doneTensor,):
+            @runtime_sequence(data_ty_in, data_ty_in, data_ty_out, data_ty_done)
+            def sequence(inTensor, innerinTensor, outOddTensor, doneTensor, ):
 
                 if trace_size > 0:
-                    trace_utils.configure_packet_tracing_aie2( #todo is this method correct form every npu?
+                    trace_utils.configure_packet_tracing_aie2(  # todo is this method correct form every npu?
                         tiles_to_trace=tiles_to_trace,
                         shim=ShimTile20,
-                        ddr_id=4,# 4 -> group_id(7)
+                        ddr_id=4,  # 4 -> group_id(7)
                         trace_size=trace_size,
                     )
 
-
-
-
-                in_task = shim_dma_single_bd_task(of_in1, inTensor, offset= 0 ,sizes=[1, 1, 1, tranfer_size_elemnts_in],issue_token=False)
+                in_task = shim_dma_single_bd_task(of_in1, inTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_in],
+                                                  issue_token=False)
                 out_task = shim_dma_single_bd_task(
                     of_out1, outOddTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=False
                 )
 
                 done_task = shim_dma_single_bd_task(
-                    of_done, doneTensor, offset=0, sizes=[1, 1, 1, 16], issue_token=True ,burst_length=64
+                    of_done, doneTensor, offset=0, sizes=[1, 1, 1, 16], issue_token=True, burst_length=64
                 )
 
-                dma_start_task(in_task,out_task,done_task)
+                dma_start_task(in_task, out_task, done_task)
 
                 for i in range(transfers_inner):
                     inner_in_task1 = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=0,
-                                                      sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
+                                                             sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
 
                     dma_start_task(inner_in_task1)
                     dma_await_task(inner_in_task1)
-
-
 
                 dma_await_task(done_task)
                 dma_free_task(in_task)
                 dma_free_task(out_task)
 
-                #trace_utils.gen_trace_done_aie2(ShimTile20)
-
-
-
+                # trace_utils.gen_trace_done_aie2(ShimTile20)
 
     res = True
     res = ctx.module.operation.verify()

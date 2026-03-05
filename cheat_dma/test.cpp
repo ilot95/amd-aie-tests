@@ -373,8 +373,11 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
 
         std::vector<DATATYPE> ref;
         //use map if you want it sorted
-        std::unordered_map<DATATYPE, size_t> map_ref;
-        map_ref.reserve(OUT_SIZE);
+        //std::unordered_map<DATATYPE, size_t> map_ref;
+        //map_ref.reserve(OUT_SIZE);
+
+        std::map<DATATYPE, size_t> map_ref;
+
         ref.reserve(OUT_SIZE);
         auto start = std::chrono::high_resolution_clock::now();
         for (uint32_t i = 0; i < IN_SIZE; i++) {
@@ -410,7 +413,8 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             std::cout << re.first << "  "<< re.second << "\n";
         }*/
         //use map if you want it sorted
-        std::unordered_map<DATATYPE, size_t> result;
+        //std::unordered_map<DATATYPE, size_t> result;
+        std::map<DATATYPE, size_t> result;
         for (uint32_t i = 0; i < OUT_SIZE; i++) {
             result[bufOut[i]] ++;
         }
@@ -428,7 +432,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         }else{
             std::cout << "not equal"<< "\n";
 
-            /*auto it = map_ref.begin();
+            auto it = map_ref.begin();
             for (size_t i =0;i<map_ref.size();i++) {
 
 
@@ -437,7 +441,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             }
 
             std::cout << "map_ref.size(): "<< map_ref.size() << " result.size() "<< result.size() << "\n";
-*/
+
 
             errors++;
         }
