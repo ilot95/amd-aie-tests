@@ -241,7 +241,7 @@ int main(int argc, const char *argv[]) {
 std::mt19937 rng(seed);
 
 // Define distribution (range 1–100)
-std::uniform_int_distribution<DATATYPE> dist(1, 1);
+std::uniform_int_distribution<DATATYPE> dist(1, 64);
 
 
   for (int iter = 0; iter < num_iter; iter++) {
