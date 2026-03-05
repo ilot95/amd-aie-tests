@@ -69,8 +69,8 @@ def external_mem_to_core():
 
             #elements = 4096
 
-            tile_ty_size_in = 128
-            tile_ty_size_out = tile_ty_size_in * 4
+            tile_ty_size_in =2048
+            tile_ty_size_out = tile_ty_size_in
 
             eprint("[INFO] tile_ty_size_in: {}".format(tile_ty_size_in))
             eprint("[INFO] tile_ty_size_out: {}".format(tile_ty_size_out))
@@ -106,6 +106,13 @@ def external_mem_to_core():
                 "odd_even",
                 inputs=[tile_ty_in, tile_ty_in,tile_ty_out,data_ty_one_int,tile_ty_out,data_ty_one_int,np.int32]
             )
+
+            passThroughLine = external_func(
+                "passThroughLine",
+                inputs=[tile_ty_out, tile_ty_out, np.int32]
+            )
+
+
 
             # Tile declarations
             ShimTile00 = tile(0, 0)
@@ -166,7 +173,7 @@ def external_mem_to_core():
                     for _ in range_(iters_outer):
                         elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
 
-                        for _ in range_(iters_inner,insert_yield=True):
+                        for _ in range_(iters_inner):
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
 
 
@@ -218,8 +225,12 @@ def external_mem_to_core():
 
                                 with if_((join_cnt[0] == tile_ty_size_out) ):
                                     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                                    for z in range_(tile_ty_size_out):
-                                        out[z] = output_buffer[z]
+                                    #todo get rid of this copy it is expensive
+                                    call(passThroughLine,
+                                         [output_buffer, out, tile_ty_size_out])
+
+                                    #for z in range_(tile_ty_size_out):
+                                    #    out[z] = output_buffer[z]
                                     of_out1.release(ObjectFifoPort.Produce, 1)
                                     join_cnt[0] = 0
                                     global_join_cnt[0] = global_join_cnt[0] + 1
@@ -258,6 +269,10 @@ def external_mem_to_core():
                         #todo loop less
                         for z in range_(tile_ty_size_out):
                             out[z] =0
+
+                        #does not work here because of loop unrolling?
+                        #call(passThroughLine,
+                        #     [output_buffer, out, join_cnt[0]])
                         for z in range_(join_cnt[0]):
                             out[z] = output_buffer[z]
                         of_out1.release(ObjectFifoPort.Produce, 1)
