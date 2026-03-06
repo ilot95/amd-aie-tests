@@ -73,7 +73,7 @@ def external_mem_to_core():
             # elements = 4096
 
             tile_ty_size_in = 64
-            tile_ty_size_out = 2*tile_ty_size_in
+            tile_ty_size_out = tile_ty_size_in*tile_ty_size_in
 
             eprint("[INFO] tile_ty_size_in: {}".format(tile_ty_size_in))
             eprint("[INFO] tile_ty_size_out: {}".format(tile_ty_size_out))
@@ -144,11 +144,12 @@ def external_mem_to_core():
             # )
 
             ty_one_int = np.ndarray[(1,), np.dtype[np.int32]]
+            one_index_int_memref_type = types.memref(1, IndexType.get())
             join_cnt = aie.buffer(
                 tile=ComputeTile02,
-                datatype=ty_one_int,
+                datatype=one_index_int_memref_type,
                 name=f"join_cnt",
-                initial_value=np.array(0, dtype=np.int32)
+                #initial_value=np.array(0, dtype=np.int32)
             )
             global_join_cnt = aie.buffer(
                 tile=ComputeTile02,
@@ -236,7 +237,7 @@ def external_mem_to_core():
 
                                 # Build the condition
                                 cond = arith.cmpi("eq", join_cnt[0],
-                                                  arith.constant(tile_ty_size_out, type=i32()))
+                                                  arith.constant(tile_ty_size_out, type=i32(),index=True))
 
                                 # Create an scf.if that RETURNS a memref result
                                 if_op = scf.IfOp(cond, [elem_memref_type], hasElse=True)
@@ -246,7 +247,7 @@ def external_mem_to_core():
                                     of_out1.release(ObjectFifoPort.Produce, 1)
                                     #todo make join_cnt a stack or register variable
                                     join_cnt[0] = 0
-                                    global_join_cnt[0] = global_join_cnt[0] + 1
+                                    #global_join_cnt[0] = global_join_cnt[0] + 1
                                     # todo dont aquire on last loop
                                     new_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
                                     #only for safety
@@ -261,18 +262,7 @@ def external_mem_to_core():
                                 # The result of the if_op is the (possibly new) output buffer
                                 ifres = if_op.results[0]
 
-                                # with if_((join_cnt[0] == tile_ty_size_out) ):
-                                #     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                                #
-                                #     eprint(out)
-                                #     #todo get rid of this copy it is expensive
-                                #     call(passThroughLine,
-                                #          [output_buffer, out, tile_ty_size_out])
-                                #
-                                #     #for z in range_(tile_ty_size_out):
-                                #     #    out[z] = output_buffer[z]
-                                #     of_out1.release(ObjectFifoPort.Produce, 1)
-                                #     join_cnt[0] = 0
+
 
                                 # Yield updated loop-carried values
                                 next_running_j = arith.addi(j, arith.constant(1, type=i32(), index=True))
@@ -312,7 +302,7 @@ def external_mem_to_core():
                     elem_done = of_done.acquire(ObjectFifoPort.Produce, 1)
                     for i in range_(16):
                         elem_done[i] = global_join_cnt[0]
-                    elem_done[0] = join_cnt[0]
+                    #elem_done[0] = join_cnt[0]
                     of_done.release(ObjectFifoPort.Produce, 1)
 
             tiles_to_trace = [ComputeTile02, ShimTile00]
@@ -341,7 +331,7 @@ def external_mem_to_core():
                 in_task = shim_dma_single_bd_task(of_in1, inTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_in],
                                                   issue_token=False)
                 out_task = shim_dma_single_bd_task(
-                    of_out1, outOddTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=False, burst_length=64
+                    of_out1, outOddTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=False
                 )
 
                 done_task = shim_dma_single_bd_task(
