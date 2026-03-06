@@ -268,7 +268,6 @@ def external_mem_to_core():
                                 # ---- THEN block: buffer is full → release old, acquire new ----
                                 with InsertionPoint(if_op.then_block):
                                     of_out1.release(ObjectFifoPort.Produce, 1)
-                                    #todo make join_cnt a stack or register variable
                                     jc_if_new = arith.constant(0, type=i32(), index=True)
                                     ac_if_new = ac_a + 1
                                     new_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
@@ -279,7 +278,6 @@ def external_mem_to_core():
 
                                 # ---- ELSE block: buffer not full → keep current buffer ----
                                 with InsertionPoint(if_op.else_block):
-                                    #todo update this
                                     yield_([out, jc_a_after_join, ac_a])
                                     #yield_([out,jc_a,ac_a])  # pass through the existing buffer unchanged
 
