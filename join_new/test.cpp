@@ -247,7 +247,7 @@ int main(int argc, const char *argv[]) {
 std::mt19937 rng(seed);
 
 // Define distribution (range 1–100)
-std::uniform_int_distribution<DATATYPE> dist(1, 64);
+std::uniform_int_distribution<DATATYPE> dist(1, 1);
 
 
   for (int iter = 0; iter < num_iter; iter++) {
@@ -266,18 +266,14 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         bufInB[i] =   iter +1; //plus one for first iteration
         */
 
-        /*for (int64_t i = 0; i < IN_SIZE; i++)
+        for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   dist(rng);
 
        for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInB[i] =   dist(rng);*/
+        bufInB[i] =   dist(rng);
 
 
-         for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInA[i] =   1;
 
-       for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInB[i] =   1;
 
 
       // Zero out buffer bo_outC
