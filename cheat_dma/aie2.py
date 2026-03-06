@@ -263,28 +263,34 @@ def external_mem_to_core():
                                 combined = arith.AndIOp(cond, cond1)
 
                                 # Create an scf.if that RETURNS a memref result
-                                if_op = scf.IfOp(combined, [elem_memref_type], hasElse=True)
+                                if_op = scf.IfOp(combined, [elem_memref_type,jc_a.type,ac_a.type], hasElse=True)
 
                                 # ---- THEN block: buffer is full → release old, acquire new ----
                                 with InsertionPoint(if_op.then_block):
                                     of_out1.release(ObjectFifoPort.Produce, 1)
                                     #todo make join_cnt a stack or register variable
-                                    join_cnt[0] = 0
-                                    aquire_out_cnt[0] = aquire_out_cnt[0] + 1
+                                    jc_if_new = arith.constant(0, type=i32(), index=True)
+                                    ac_if_new = aquire_out_cnt[0] + 1
                                     # todo dont aquire on last loop
                                     new_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
                                     #only for safety
                                     #for z in range_(0, tile_ty_size_out, 1):
                                     #    new_out[z] = 0
-                                    yield_([new_out])
+                                    yield_([new_out,jc_if_new,ac_if_new])
 
                                 # ---- ELSE block: buffer not full → keep current buffer ----
                                 with InsertionPoint(if_op.else_block):
-                                    yield_([out])  # pass through the existing buffer unchanged
+                                    #todo update this
+                                    yield_([out, join_cnt[0], aquire_out_cnt[0]])
+                                    #yield_([out,jc_a,ac_a])  # pass through the existing buffer unchanged
 
                                 # The result of the if_op is the (possibly new) output buffer
                                 ifres = if_op.results[0]
+                                join_cnt[0] = if_op.results[1]
+                                aquire_out_cnt[0] = if_op.results[2]
 
+                                jc_if_res = if_op.results[1]
+                                ac_if_res = if_op.results[2]
 
 
                                 # Yield updated loop-carried values
@@ -297,7 +303,7 @@ def external_mem_to_core():
 
                                 next_running_i = arith.select(cmp, i + 1, i)
                                 #todo fix last two
-                                scf.yield_([next_running_i, next_running_j, ifres,jc_a,ac_a])
+                                scf.yield_([next_running_i, next_running_j, ifres,jc_if_res,ac_if_res])
                             of_in_inner.release(ObjectFifoPort.Consume, 1)
                             scf.yield_([wh.results[2],wh.results[3],wh.results[4]])
 
