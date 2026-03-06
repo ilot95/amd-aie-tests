@@ -234,10 +234,17 @@ def external_mem_to_core():
 
                                 elem_in_i = elem_in[i]
 
-                                with if_(elem_in_i == elem_inner[j]):
-                                    jcc = join_cnt[0]
-                                    out[jcc] = elem_in_i
-                                    join_cnt[0] = jcc + 1
+                                cmpjoin = arith.cmpi("eq", elem_in_i,elem_inner[j])
+                                jcc = join_cnt[0]
+                                out[jcc] = elem_in_i
+                                join_cnt[0] = arith.select(cmpjoin, jcc + 1,jcc)
+
+
+                                #todo also test with scf
+                                # with if_(elem_in_i == elem_inner[j]):
+                                #     jcc = join_cnt[0]
+                                #     out[jcc] = elem_in_i
+                                #     join_cnt[0] = jcc + 1
                                     # global_join_cnt[0] = global_join_cnt[0] + 1
 
                                 # chek if buffer full
