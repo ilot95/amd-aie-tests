@@ -257,7 +257,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
       if (verbosity >= 1) {
       std::cout << "Setting inputs and zero out out buffers ..." << std::endl;
     }
-       constexpr bool worst = false;
+
        /*
       for (int64_t i = 0; i < IN_SIZE; i++)
         bufInA[i] =   iter +1; //plus one for first iteration
@@ -266,20 +266,11 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         bufInB[i] =   iter +1; //plus one for first iteration
         */
 
-        if(worst){
-               for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInA[i] =   1;
+        for (int64_t i = 0; i < IN_SIZE; i++)
+        bufInA[i] =   dist(rng);
 
        for (int64_t i = 0; i < IN_SIZE; i++)
-        bufInB[i] =   1;
-
-        }else{
-            for (int64_t i = 0; i < IN_SIZE; i++)
-            bufInA[i] =   dist(rng);
-
-           for (int64_t i = 0; i < IN_SIZE; i++)
-            bufInB[i] =   dist(rng);
-        }
+        bufInB[i] =   dist(rng);
 
 
 
