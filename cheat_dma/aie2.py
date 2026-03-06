@@ -149,18 +149,18 @@ def external_mem_to_core():
 
             ty_one_int = np.ndarray[(1,), np.dtype[np.int32]]
             one_index_int_memref_type = types.memref(1, IndexType.get())
-            join_cnt = aie.buffer(
-                tile=ComputeTile02,
-                datatype=one_index_int_memref_type,
-                name=f"join_cnt",
-                #initial_value=np.array(0, dtype=np.int32)
-            )
-            aquire_out_cnt = aie.buffer(
-                tile=ComputeTile02,
-                datatype=ty_one_int,
-                name=f"global_join_cnt",
-                initial_value=np.array(0, dtype=np.int32)
-            )
+            # join_cnt = aie.buffer(
+            #     tile=ComputeTile02,
+            #     datatype=one_index_int_memref_type,
+            #     name=f"join_cnt",
+            #     #initial_value=np.array(0, dtype=np.int32)
+            # )
+            # aquire_out_cnt = aie.buffer(
+            #     tile=ComputeTile02,
+            #     datatype=ty_one_int,
+            #     name=f"global_join_cnt",
+            #     initial_value=np.array(0, dtype=np.int32)
+            # )
 
             # Set up compute tiles
             # Compute tile
@@ -235,9 +235,9 @@ def external_mem_to_core():
                                 elem_in_i = elem_in[i]
 
                                 cmpjoin = arith.cmpi("eq", elem_in_i,elem_inner[j])
-                                jcc = join_cnt[0]
-                                out[jcc] = elem_in_i
-                                join_cnt[0] = arith.select(cmpjoin, jcc + 1,jcc)
+                                #jcc = join_cnt[0]
+                                out[jc_a] = elem_in_i
+                                jc_a_after_join = arith.select(cmpjoin, jc_a + 1,jc_a)
 
 
                                 #todo also test with scf
@@ -254,10 +254,10 @@ def external_mem_to_core():
 
 
                                 # Build the condition
-                                cond = arith.cmpi("eq", join_cnt[0],
+                                cond = arith.cmpi("eq", jc_a_after_join,
                                                   arith.constant(tile_ty_size_out, type=i32(),index=True))
 
-                                cond1 = arith.cmpi("slt", aquire_out_cnt[0],
+                                cond1 = arith.cmpi("slt", ac_a,
                                                   arith.constant(max_outer_aquire, type=i32()))
 
                                 combined = arith.AndIOp(cond, cond1)
@@ -270,8 +270,7 @@ def external_mem_to_core():
                                     of_out1.release(ObjectFifoPort.Produce, 1)
                                     #todo make join_cnt a stack or register variable
                                     jc_if_new = arith.constant(0, type=i32(), index=True)
-                                    ac_if_new = aquire_out_cnt[0] + 1
-                                    # todo dont aquire on last loop
+                                    ac_if_new = ac_a + 1
                                     new_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
                                     #only for safety
                                     #for z in range_(0, tile_ty_size_out, 1):
@@ -281,13 +280,13 @@ def external_mem_to_core():
                                 # ---- ELSE block: buffer not full → keep current buffer ----
                                 with InsertionPoint(if_op.else_block):
                                     #todo update this
-                                    yield_([out, join_cnt[0], aquire_out_cnt[0]])
+                                    yield_([out, jc_a_after_join, ac_a])
                                     #yield_([out,jc_a,ac_a])  # pass through the existing buffer unchanged
 
                                 # The result of the if_op is the (possibly new) output buffer
                                 ifres = if_op.results[0]
-                                join_cnt[0] = if_op.results[1]
-                                aquire_out_cnt[0] = if_op.results[2]
+                                #join_cnt[0] = if_op.results[1]
+                                #aquire_out_cnt[0] = if_op.results[2]
 
                                 jc_if_res = if_op.results[1]
                                 ac_if_res = if_op.results[2]
@@ -302,7 +301,6 @@ def external_mem_to_core():
                                                               next_running_j)
 
                                 next_running_i = arith.select(cmp, i + 1, i)
-                                #todo fix last two
                                 scf.yield_([next_running_i, next_running_j, ifres,jc_if_res,ac_if_res])
                             of_in_inner.release(ObjectFifoPort.Consume, 1)
                             scf.yield_([wh.results[2],wh.results[3],wh.results[4]])
@@ -312,12 +310,12 @@ def external_mem_to_core():
 
 
                     #zero rest of tensor
-                    for z in range_(join_cnt[0],tile_ty_size_out,1):
+                    for z in range_(final_final_out[1],tile_ty_size_out,1):
                         final_final_out[0][z] =0
 
-                    # todo maybe dont do this if last loop was full or leave it and change the loop
+                    # Always do this as the loop will skip if all aquires  were used
                     of_out1.release(ObjectFifoPort.Produce, 1)
-                    join_cnt[0] = 0
+                    #join_cnt[0] = 0
 
                     #some extra aquire releases
                     # for _ in range_(0, 200, 1):
@@ -330,7 +328,7 @@ def external_mem_to_core():
 
                     elem_done = of_done.acquire(ObjectFifoPort.Produce, 1)
                     for i in range_(16):
-                        elem_done[i] = aquire_out_cnt[0]
+                        elem_done[i] = final_final_out[2]
                     #elem_done[0] = join_cnt[0]
                     of_done.release(ObjectFifoPort.Produce, 1)
 
