@@ -75,6 +75,10 @@ def external_mem_to_core():
             tile_ty_size_in = 64
             tile_ty_size_out = tile_ty_size_in*tile_ty_size_in
 
+            max_outer_aquire = tranfer_size_elemnts_out // tile_ty_size_out
+            eprint("[INFO] max_outer_aquire: {}".format(max_outer_aquire))
+
+
             eprint("[INFO] tile_ty_size_in: {}".format(tile_ty_size_in))
             eprint("[INFO] tile_ty_size_out: {}".format(tile_ty_size_out))
 
@@ -151,7 +155,7 @@ def external_mem_to_core():
                 name=f"join_cnt",
                 #initial_value=np.array(0, dtype=np.int32)
             )
-            global_join_cnt = aie.buffer(
+            aquire_out_cnt = aie.buffer(
                 tile=ComputeTile02,
                 datatype=ty_one_int,
                 name=f"global_join_cnt",
@@ -171,7 +175,7 @@ def external_mem_to_core():
                     elem_memref_type = types.memref(tile_ty_size_out, i32())
                     eprint(elem_memref_type)
                     join_cnt[0] = 0
-                    global_join_cnt[0] = 0
+                    aquire_out_cnt[0] = 1
                     firstout = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
                     # only for safety
@@ -239,15 +243,20 @@ def external_mem_to_core():
                                 cond = arith.cmpi("eq", join_cnt[0],
                                                   arith.constant(tile_ty_size_out, type=i32(),index=True))
 
+                                cond1 = arith.cmpi("slt", aquire_out_cnt[0],
+                                                  arith.constant(max_outer_aquire, type=i32()))
+
+                                combined = arith.AndIOp(cond, cond1)
+
                                 # Create an scf.if that RETURNS a memref result
-                                if_op = scf.IfOp(cond, [elem_memref_type], hasElse=True)
+                                if_op = scf.IfOp(combined, [elem_memref_type], hasElse=True)
 
                                 # ---- THEN block: buffer is full → release old, acquire new ----
                                 with InsertionPoint(if_op.then_block):
                                     of_out1.release(ObjectFifoPort.Produce, 1)
                                     #todo make join_cnt a stack or register variable
                                     join_cnt[0] = 0
-                                    #global_join_cnt[0] = global_join_cnt[0] + 1
+                                    aquire_out_cnt[0] = aquire_out_cnt[0] + 1
                                     # todo dont aquire on last loop
                                     new_out = of_out1.acquire(ObjectFifoPort.Produce, 1)
                                     #only for safety
@@ -301,7 +310,7 @@ def external_mem_to_core():
 
                     elem_done = of_done.acquire(ObjectFifoPort.Produce, 1)
                     for i in range_(16):
-                        elem_done[i] = global_join_cnt[0]
+                        elem_done[i] = aquire_out_cnt[0]
                     #elem_done[0] = join_cnt[0]
                     of_done.release(ObjectFifoPort.Produce, 1)
 
