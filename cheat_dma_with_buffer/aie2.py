@@ -223,15 +223,15 @@ def external_mem_to_core():
 
                                 #chek if buffer full
                                 #last iteration is handled later
-                                outs = []
+
 
                                 with if_((join_cnt[0] == tile_ty_size_out) ):
-                                    outs.insert(1, of_out1.acquire(ObjectFifoPort.Produce, 1))
+                                    out = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
-                                    eprint(outs)
+
                                     #todo get rid of this copy it is expensive
                                     call(passThroughLine,
-                                         [output_buffer, outs[0], tile_ty_size_out])
+                                         [output_buffer, out, tile_ty_size_out])
 
                                     #for z in range_(tile_ty_size_out):
                                     #    out[z] = output_buffer[z]
