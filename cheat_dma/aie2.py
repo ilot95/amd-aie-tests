@@ -164,7 +164,7 @@ def external_mem_to_core():
 
             # Set up compute tiles
             # Compute tile
-            @core(ComputeTile02, "odd_even.o")
+            @core(ComputeTile02, "odd_even.o",dynamic_objfifo_lowering=True)
             def core_body_02():
                 for _ in range_(0xFFFFFFFF):
 

@@ -56,10 +56,11 @@ build_xchesscc/odd_even.o: ${srcdir}/odd_even.cc
 	mkdir -p ${@D}
 	cd ${@D} && ${KERNEL_CC} ${KERNEL_CFLAGS} ${KERNEL_DEFINES} -c $< -o ${@F}
 
+#--dynamic-objFifos
 build_xchesscc/final.xclbin: build_mlir/aie.mlir build_xchesscc/odd_even.o
 	mkdir -p ${@D}
 	cd ${@D}  &&  PATH=${PATHVAR}:$$PATH \
-		  &&  aiecc.py  --aie-generate-xclbin --dynamic-objFifos --no-compile-host --xclbin-name=${@F} \
+		  &&  aiecc.py  --aie-generate-xclbin  --no-compile-host --xclbin-name=${@F} \
 				--xchesscc --xbridge \
 				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
 
@@ -75,11 +76,13 @@ else
 	echo "Device type not supported"
 endif
 
+
+#cat build_mlir/aie.mlir | aie-opt --aie-objectFifo-stateful-transform=dynamic-objFifos >> build_mlir/new_aie.mlir
 #--dynamic-objFifos  --no-xchesscc  --no-xbridge    --xchesscc --xbridge -v
 #for this dynamic objFifos are needed here
 build_peano/final.xclbin: build_mlir/aie.mlir build_peano/odd_even.o
 	mkdir -p ${@D}
-	cd ${@D} && aiecc.py --aie-generate-xclbin  --dynamic-objFifos --no-compile-host --xclbin-name=${@F} \
+	cd ${@D} && aiecc.py --aie-generate-xclbin   --no-compile-host --xclbin-name=${@F} \
 				--no-xchesscc --no-xbridge  \
 				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
 
