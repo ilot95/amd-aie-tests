@@ -281,7 +281,6 @@ int main(int argc, const char *argv[]) {
     ert_cmd_state r = run.wait();
     //run.wait2();
     auto stop = std::chrono::high_resolution_clock::now();
-    run.abort();
      if(r != ERT_CMD_STATE_COMPLETED){
         std::cout << "run.wait() did not return ERT_CMD_STATE_COMPLETED: " << r<<"\n";
     }
