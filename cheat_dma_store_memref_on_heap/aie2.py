@@ -177,29 +177,41 @@ def external_mem_to_core():
                         for _ in range_(iters_inner):
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
 
-                            #join_cnt[0] =0
+                            join_cnt[0] =0
                             for i in range_(tile_ty_size_in):
                                  for j in range_(tile_ty_size_in):
                                      elem_in_i = elem_in[i]
+                                     #global_join_cnt[0] =elem_in_i
+
+
                                      cmpjoin = arith.cmpi("eq", elem_in_i, elem_inner[j])
                                      jcc = join_cnt[0]
                                      output_buffer[jcc] = arith.select(cmpjoin, elem_in_i, arith.constant(0, type=i32()))
-                                     join_cnt[0] = jcc + 1
+                                     new_join_cnt = jcc + 1
+                                     join_cnt[0] = new_join_cnt
+                                     #
+                                     #cmp = arith.cmpi("eq", new_join_cnt, arith.constant(tile_ty_size_out, type=i32()))
+                                     #cmp1 = arith.cmpi("eq", new_join_cnt, arith.constant(tile_ty_size_out, type=i32()))
+                                     #combined = arith.AndIOp(cmp, cmp1)
+                                     #join_cnt[0] = arith.select(cmp,arith.constant(0, type=i32()),new_join_cnt)
+
 
 
                                      #chek if buffer full
                                      #last iteration is handled later
-                                     with if_((join_cnt[0] == tile_ty_size_out)):
-                                         out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                                     #with if_((new_join_cnt == tile_ty_size_out)):
+                                         #join_cnt[0] = 0
+                                         #pass
+                                         #out = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
                                          # todo get rid of this copy it is expensive
-                                         call(passThroughLine,
-                                              [output_buffer, out, tile_ty_size_out])
+                                         #call(passThroughLine,
+                                         #     [output_buffer, out, tile_ty_size_out])
 
                                          # for z in range_(tile_ty_size_out):
                                          #    out[z] = output_buffer[z]
-                                         of_out1.release(ObjectFifoPort.Produce, 1)
-                                         join_cnt[0] = 0
+                                         #of_out1.release(ObjectFifoPort.Produce, 1)
+                                         #join_cnt[0] = 0
 
 
 

@@ -61,7 +61,7 @@ build_xchesscc/odd_even.o: ${srcdir}/odd_even.cc
 build_xchesscc/final.xclbin: build_mlir/aie.mlir build_xchesscc/odd_even.o
 	mkdir -p ${@D}
 	cd ${@D}  &&  PATH=${PATHVAR}:$$PATH \
-		  &&  aiecc.py  --aie-generate-xclbin  --no-compile-host --xclbin-name=${@F} \
+		  &&  aiecc.py -v --aie-generate-xclbin  --no-compile-host --xclbin-name=${@F} \
 				--xchesscc --xbridge \
 				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
 
@@ -82,7 +82,7 @@ endif
 build_peano/final.xclbin: build_mlir/aie.mlir build_peano/odd_even.o
 	mkdir -p ${@D}
 	cd ${@D} && aiecc.py --aie-generate-xclbin  --no-compile-host --xclbin-name=${@F} \
-				--no-xchesscc --no-xbridge  \
+				--no-xchesscc --no-xbridge -O 3 --dump-intermediates\
 				--aie-generate-npu-insts --npu-insts-name=insts.bin $(<:%=../%)
 
 ${targetname}.exe: ${srcdir}/test.cpp

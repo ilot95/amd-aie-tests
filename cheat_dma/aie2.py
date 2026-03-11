@@ -263,7 +263,7 @@ def external_mem_to_core():
                                 combined = arith.AndIOp(cond, cond1)
 
                                 # Create an scf.if that RETURNS a memref result
-                                if_op = scf.IfOp(combined, [elem_memref_type,jc_a.type,ac_a.type], hasElse=True)
+                                if_op = scf.IfOp(combined, [elem_memref_type,jc_a.type,ac_a.type],has_else=True)
 
                                 # ---- THEN block: buffer is full → release old, acquire new ----
                                 with InsertionPoint(if_op.then_block):
