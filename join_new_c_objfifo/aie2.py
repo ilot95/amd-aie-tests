@@ -96,7 +96,20 @@ def external_mem_to_core():
             # External, binary kernel definition
             odd_even = external_func(
                 "odd_even",
-                inputs=[tile_ty_in, tile_ty_in,tile_ty_out, np.int32]
+                inputs=[
+                    tile_ty_in,  # in buffer 0
+                    tile_ty_in,  # in buffer 1
+                    tile_ty_in,  # in1 buffer 0
+                    tile_ty_in,  # in1 buffer 1
+                    tile_ty_out,  # out buffer 0
+                    tile_ty_out,  # out buffer 1
+                    T.index(),  # in acq_lock
+                    T.index(),  # in rel_lock
+                    T.index(),  # in1 acq_lock
+                    T.index(),  # in1 rel_lock
+                    T.index(),  # out acq_lock
+                    T.index(),  # out rel_lock
+                ]
             )
 
             # Tile declarations
@@ -111,15 +124,15 @@ def external_mem_to_core():
             # AIE-array data movement with object fifos
             # Input
             #of_in = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
-            of_in1 = object_fifo("in1", ShimTile00, ComputeTile02, 2, tile_ty_in)
-            of_in_inner = object_fifo("in1_inner", ShimTile00, ComputeTile02, 2, tile_ty_in)
+            of_in = object_fifo("in1", ShimTile00, ComputeTile02, 2, tile_ty_in)
+            of_in1 = object_fifo("in1_inner", ShimTile00, ComputeTile02, 2, tile_ty_in)
             #object_fifo_link(of_in, of_in1)
 
 
 
             # Output
             #of_out1 = object_fifo("out1", ComputeTile02, MemTile01, 2, tile_ty)
-            of_out1 = object_fifo("out", ComputeTile02, ShimTile00, 2, tile_ty_out)
+            of_out = object_fifo("out", ComputeTile02, ShimTile00, 2, tile_ty_out)
             #object_fifo_link(of_out1, of_out)
 
             #of_out1_odd = object_fifo("outodd", ComputeTile02, MemTile01, 2, tile_ty)
@@ -134,37 +147,34 @@ def external_mem_to_core():
             # Compute tile
             @core(ComputeTile02, "odd_even.o",dynamic_objfifo_lowering=False)
             def core_body_02():
-                # for _ in range_(0xFFFFFFFF):
-                #     for _ in range_(host_elements//elements):
-                #         for i in range_(iters):
-                #             elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
-                #             elemOut_even = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                #             elemOut_odd = of_out1_odd.acquire(ObjectFifoPort.Produce, 1)
-                #
-                #             for j in range_(tile_ty_size):
-                #               elemOut_even[j] = elem_in[j]
-                #               elemOut_odd[j] = elem_in[j]
-                #
-                #             of_in1.release(ObjectFifoPort.Consume, 1)
-                #             of_out1_odd.release(ObjectFifoPort.Produce, 1)
-                #             of_out1.release(ObjectFifoPort.Produce, 1)
+                in_buf0 = of_in.get_buffer(0)
+                in_buf1 = of_in.get_buffer(1)
+                in_acq, in_rel = of_in.get_lock(ObjectFifoPort.Consume)
 
-                for _ in range_(0xFFFFFFFF):
-                    #for _ in range_(iters):
-                    for _ in range_(iters_outer):
-                        elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
+                in1_buf0 = of_in1.get_buffer(0)
+                in1_buf1 = of_in1.get_buffer(1)
+                in1_acq, in1_rel = of_in1.get_lock(ObjectFifoPort.Consume)
 
-                        for _ in range_(iters_inner):
-                            elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
-                            out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                out_buf0 = of_out.get_buffer(0)
+                out_buf1 = of_out.get_buffer(1)
+                out_acq, out_rel = of_out.get_lock(ObjectFifoPort.Produce)
 
-                            call(odd_even, [elem_in, elem_inner, out, tile_ty_size_in])
+                # C kernel owns the compute loop and buffer rotation
+                odd_even(
+                    in_buf0,
+                    in_buf1,
+                    in1_buf0,
+                    in1_buf1,
+                    out_buf0,
+                    out_buf1,
+                    in_acq,
+                    in_rel,
+                    in1_acq,
+                    in1_rel,
+                    out_acq,
+                    out_rel,
+                )
 
-                            of_out1.release(ObjectFifoPort.Produce, 1)
-                            of_in_inner.release(ObjectFifoPort.Consume, 1)
-
-
-                        of_in1.release(ObjectFifoPort.Consume, 1)
 
 
 
@@ -199,15 +209,15 @@ def external_mem_to_core():
 
 
 
-                in_task = shim_dma_single_bd_task(of_in1, inTensor, offset= 0 ,sizes=[1, 1, 1, tranfer_size_elemnts_in],issue_token=False)
+                in_task = shim_dma_single_bd_task(of_in, inTensor, offset= 0 ,sizes=[1, 1, 1, tranfer_size_elemnts_in],issue_token=False)
                 out_task = shim_dma_single_bd_task(
-                    of_out1, outOddTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=True
+                    of_out, outOddTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=True
                 )
 
                 dma_start_task(in_task,out_task)
 
                 for i in range(transfers_inner):
-                    inner_in_task1 = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=0,
+                    inner_in_task1 = shim_dma_single_bd_task(of_in1, innerinTensor, offset=0,
                                                       sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
 
                     dma_start_task(inner_in_task1)

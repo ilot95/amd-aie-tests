@@ -51,10 +51,10 @@ else ifeq (${devicename}, npu2)
 	PATHVAR=${AIETOOLS_ROOT}/tps/lnx64/target_aie2p/bin/LNa64bin
 endif
 
-
+#todo fix -I
 build_xchesscc/odd_even.o: ${srcdir}/odd_even.cc
 	mkdir -p ${@D}
-	cd ${@D} && ${KERNEL_CC} ${KERNEL_CFLAGS} ${KERNEL_DEFINES} -c $< -o ${@F}
+	cd ${@D} && ${KERNEL_CC} ${KERNEL_CFLAGS} -I ${MLIR_AIE_DIR}/aie_runtime_lib/AIE2P ${KERNEL_DEFINES} -c $< -o ${@F}
 
 
 #--dynamic-objFifos
@@ -69,10 +69,10 @@ build_xchesscc/final.xclbin: build_mlir/aie.mlir build_xchesscc/odd_even.o
 
 build_peano/odd_even.o: ${srcdir}/odd_even.cc
 	mkdir -p ${@D}
-ifeq ($(devicename),npu)
-	cd ${@D} && ${PEANO_INSTALL_DIR}/bin/clang++ ${PEANOWRAP2_FLAGS} -c $< -o ${@F}
+ifeq ($(devicename),npu) #todo fix -I
+	cd ${@D} && ${PEANO_INSTALL_DIR}/bin/clang++ ${PEANOWRAP2_FLAGS} -I ${MLIR_AIE_DIR}/aie_runtime_lib/AIE2P -c $< -o ${@F}
 else ifeq ($(devicename),npu2)
-	cd ${@D} && ${PEANO_INSTALL_DIR}/bin/clang++ ${PEANOWRAP2P_FLAGS} -c $< -o ${@F}
+	cd ${@D} && ${PEANO_INSTALL_DIR}/bin/clang++ ${PEANOWRAP2P_FLAGS} -I ${MLIR_AIE_DIR}/aie_runtime_lib/AIE2P -c $< -o ${@F}
 else
 	echo "Device type not supported"
 endif
