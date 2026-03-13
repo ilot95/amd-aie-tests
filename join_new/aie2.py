@@ -111,15 +111,15 @@ def external_mem_to_core():
             # AIE-array data movement with object fifos
             # Input
             #of_in = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
-            of_in1 = object_fifo("in1", ShimTile00, ComputeTile02, 2, tile_ty_in)
-            of_in_inner = object_fifo("in1_inner", ShimTile00, ComputeTile02, 2, tile_ty_in)
+            of_in1 = object_fifo("in1", ShimTile00, ComputeTile02, 1, tile_ty_in)
+            of_in_inner = object_fifo("in1_inner", ShimTile00, ComputeTile02, 1, tile_ty_in)
             #object_fifo_link(of_in, of_in1)
 
 
 
             # Output
             #of_out1 = object_fifo("out1", ComputeTile02, MemTile01, 2, tile_ty)
-            of_out1 = object_fifo("out", ComputeTile02, ShimTile00, 2, tile_ty_out)
+            of_out1 = object_fifo("out", ComputeTile02, ShimTile00, 1, tile_ty_out)
             #object_fifo_link(of_out1, of_out)
 
             #of_out1_odd = object_fifo("outodd", ComputeTile02, MemTile01, 2, tile_ty)

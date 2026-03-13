@@ -28,11 +28,14 @@ void odd_even(
     auto const iters_inner = 256;
     while(true){
             //for _ in range_(iters_outer):
+            //AIE_PREPARE_FOR_PIPELINING
+            //AIE_LOOP_UNROLL(16)
             for (int i = 0; i < iters_outer; i++) {
                 //elem_in = of_in1.acquire(ObjectFifoPort.Consume, 1)
                 objectfifo_acquire(&of_in);
                 int32_t *input = (int32_t *)objectfifo_get_buffer(&of_in, i);
                 //for _ in range_(iters_inner):
+                //AIE_LOOP_UNROLL(16)
                 for (int j = 0; j < iters_inner; j++) {
                     //elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
                     //out = of_out1.acquire(ObjectFifoPort.Produce, 1)
@@ -42,7 +45,6 @@ void odd_even(
                     int32_t *out = (int32_t *)objectfifo_get_buffer(&of_out, j);
 
                     int join_count = 0;
-                    AIE_PREPARE_FOR_PIPELINING
                     AIE_LOOP_UNROLL(2)
                     for (int i = 0; i < 64; i++) {
                       AIE_LOOP_UNROLL_FULL
