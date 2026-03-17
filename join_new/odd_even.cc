@@ -16,6 +16,7 @@ void odd_even(int32_t *input, int32_t * restrict input1,  int32_t * restrict val
    int join_count = 0;
   AIE_PREPARE_FOR_PIPELINING
   AIE_LOOP_UNROLL(2)
+  //AIE_LOOP_UNROLL_FULL
   for (int i = 0; i < 64; i++) {
 
       AIE_LOOP_UNROLL_FULL

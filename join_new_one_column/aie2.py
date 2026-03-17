@@ -70,8 +70,8 @@ def external_mem_to_core():
             tile_ty_size_in = 64
             tile_ty_size_out = tile_ty_size_in * tile_ty_size_in
 
-            tile_ty_size_in_mem = 4 * tile_ty_size_in
-            tile_ty_size_out_mem = tile_ty_size_out * 4
+
+
 
             eprint("[INFO] tile_ty_size_in: {}".format(tile_ty_size_in))
             eprint("[INFO] tile_ty_size_out: {}".format(tile_ty_size_out))
@@ -89,9 +89,9 @@ def external_mem_to_core():
 
             eprint("[INFO] transfers_inner: {}".format(transfers_inner))
 
-
+            tile_ty_size_in_mem = tile_ty_size_in * 4
             mem_ty_in = np.ndarray[(tile_ty_size_in_mem,), np.dtype[np.int32]]
-            mem_ty_out = np.ndarray[(tile_ty_size_out_mem,), np.dtype[np.int32]]
+
 
             tile_ty_in = np.ndarray[(tile_ty_size_in,), np.dtype[np.int32]]
             tile_ty_out = np.ndarray[(tile_ty_size_out,), np.dtype[np.int32]]
@@ -131,12 +131,15 @@ def external_mem_to_core():
 
             object_fifo_link(of_in, [of_in1, of_in2,of_in3,of_in4], [], [0, 64,128,192])
 
-            of_in_inner = object_fifo("in1_inner", ShimTile00, [ComputeTile02,ComputeTile03,ComputeTile04,ComputeTile05], 3, tile_ty_in)
+            of_in_inner_put_in = object_fifo("in1_inner_put_in", ShimTile00,
+                                     MemTile01, 2, mem_ty_in)
 
+            of_in_inner = object_fifo("in1_inner", MemTile01, [ComputeTile02,ComputeTile03,ComputeTile04,ComputeTile05], 2, tile_ty_in)
 
+            object_fifo_link(of_in_inner_put_in,of_in_inner)
 
-
-
+            tile_ty_size_out_mem = tile_ty_size_out *4
+            mem_ty_out = np.ndarray[(tile_ty_size_out_mem,), np.dtype[np.int32]]
             # Output
             of_out = object_fifo("out", MemTile01, ShimTile00, 2, mem_ty_out)
 
@@ -259,7 +262,7 @@ def external_mem_to_core():
                 )
                 dma_start_task(in_task,out_task)
                 for i in range(transfers_inner):
-                    inner_in_task1 = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=0,
+                    inner_in_task1 = shim_dma_single_bd_task(of_in_inner_put_in, innerinTensor, offset=0,
                                                       sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
                     dma_start_task(inner_in_task1)
                     dma_await_task(inner_in_task1)
