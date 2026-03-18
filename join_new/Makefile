@@ -57,7 +57,7 @@ build_xchesscc/odd_even.o: ${srcdir}/odd_even.cc
 	cd ${@D} && ${KERNEL_CC} ${KERNEL_CFLAGS} ${KERNEL_DEFINES} -c $< -o ${@F}
 
 
-#--dynamic-objFifos
+#--dynamic-objFifos   --packet-sw-objFifos
 build_xchesscc/final.xclbin: build_mlir/aie.mlir build_xchesscc/odd_even.o
 	mkdir -p ${@D}
 	cd ${@D}  &&  PATH=${PATHVAR}:$$PATH \

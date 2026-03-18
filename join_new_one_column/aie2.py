@@ -92,6 +92,12 @@ def external_mem_to_core():
             tile_ty_size_in_mem = tile_ty_size_in * 4
             mem_ty_in = np.ndarray[(tile_ty_size_in_mem,), np.dtype[np.int32]]
 
+            tile_ty_size_in_mem_innner = host_elements
+            mem_ty_in_inner = np.ndarray[(tile_ty_size_in_mem_innner,), np.dtype[np.int32]]
+
+            tile_ty_size_out_mem = tile_ty_size_out * 4
+            mem_ty_out = np.ndarray[(tile_ty_size_out_mem,), np.dtype[np.int32]]
+
 
             tile_ty_in = np.ndarray[(tile_ty_size_in,), np.dtype[np.int32]]
             tile_ty_out = np.ndarray[(tile_ty_size_out,), np.dtype[np.int32]]
@@ -132,14 +138,13 @@ def external_mem_to_core():
             object_fifo_link(of_in, [of_in1, of_in2,of_in3,of_in4], [], [0, 64,128,192])
 
             of_in_inner_put_in = object_fifo("in1_inner_put_in", ShimTile00,
-                                     MemTile01, 2, mem_ty_in)
+                                     MemTile01, 2, mem_ty_in_inner)
 
             of_in_inner = object_fifo("in1_inner", MemTile01, [ComputeTile02,ComputeTile03,ComputeTile04,ComputeTile05], 2, tile_ty_in)
 
             object_fifo_link(of_in_inner_put_in,of_in_inner)
 
-            tile_ty_size_out_mem = tile_ty_size_out *4
-            mem_ty_out = np.ndarray[(tile_ty_size_out_mem,), np.dtype[np.int32]]
+
             # Output
             of_out = object_fifo("out", MemTile01, ShimTile00, 2, mem_ty_out)
 
