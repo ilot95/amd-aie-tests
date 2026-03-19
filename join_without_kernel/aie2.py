@@ -108,15 +108,7 @@ def external_mem_to_core():
             data_ty_one_int = np.ndarray[(1,), np.dtype[np.int32]]
 
             # External, binary kernel definition
-            odd_even = external_func(
-                "odd_even",
-                inputs=[tile_ty_in, tile_ty_in, tile_ty_out, data_ty_one_int, tile_ty_out, data_ty_one_int, np.int32]
-            )
 
-            passThroughLine = external_func(
-                "passThroughLine",
-                inputs=[tile_ty_out, tile_ty_out, np.int32]
-            )
 
             # Tile declarations
             ShimTile00 = tile(0, 0)
@@ -164,7 +156,7 @@ def external_mem_to_core():
 
             # Set up compute tiles
             # Compute tile
-            @core(ComputeTile02, "odd_even.o")
+            @core(ComputeTile02)
             def core_body_02():
                 for _ in range_(0xFFFFFFFF):
 
