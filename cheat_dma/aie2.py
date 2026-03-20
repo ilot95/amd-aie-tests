@@ -108,15 +108,7 @@ def external_mem_to_core():
             data_ty_one_int = np.ndarray[(1,), np.dtype[np.int32]]
 
             # External, binary kernel definition
-            odd_even = external_func(
-                "odd_even",
-                inputs=[tile_ty_in, tile_ty_in, tile_ty_out, data_ty_one_int, tile_ty_out, data_ty_one_int, np.int32]
-            )
 
-            passThroughLine = external_func(
-                "passThroughLine",
-                inputs=[tile_ty_out, tile_ty_out, np.int32]
-            )
 
             # Tile declarations
             ShimTile00 = tile(0, 0)
@@ -263,7 +255,7 @@ def external_mem_to_core():
                                 combined = arith.AndIOp(cond, cond1)
 
                                 # Create an scf.if that RETURNS a memref result
-                                if_op = scf.IfOp(combined, [elem_memref_type,jc_a.type,ac_a.type],has_else=True)
+                                if_op = scf.IfOp(combined, [elem_memref_type,jc_a.type,ac_a.type],hasElse=True)
 
                                 # ---- THEN block: buffer is full → release old, acquire new ----
                                 with InsertionPoint(if_op.then_block):

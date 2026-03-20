@@ -120,7 +120,8 @@ int main(int argc, const char *argv[]) {
   int64_t host_elements = vm["host_elements"].as<int64_t>();
    std::cout << "host_elements: " << host_elements << "\n";
   int64_t IN_SIZE = host_elements;
-  int64_t OUT_SIZE = IN_SIZE *IN_SIZE;
+  //one GB
+  int64_t OUT_SIZE = 268435456 *1;
   bool enable_ctrl_pkts = false;
 
 
@@ -398,7 +399,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             //ref.push_back(bufInA[i]);
             map_ref[bufInA[i]] ++;
             }else{
-                map_ref[0]++;
+                //map_ref[0]++;
             }
         }
         }
@@ -411,7 +412,8 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         //use map if you want it sorted
         std::unordered_map<DATATYPE, size_t> result;
         for (uint32_t i = 0; i < OUT_SIZE; i++) {
-            result[bufOut[i]] ++;
+            if(bufOut[i] !=0)
+                result[bufOut[i]] ++;
         }
 
         /*std::cout << "\nresult:" << std::endl;
@@ -426,6 +428,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             std::cout << "map_ref: "<< map_ref[1]<< " result "<< result[1] << "\n";
         }else{
             std::cout << "not equal"<< "\n";
+            std::cout << "map_ref.size(): "<< map_ref.size() << " result.size() "<< result.size() << "\n";
 
             /*auto it = map_ref.begin();
             for (size_t i =0;i<map_ref.size();i++) {

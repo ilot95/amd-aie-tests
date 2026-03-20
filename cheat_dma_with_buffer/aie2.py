@@ -57,7 +57,8 @@ def external_mem_to_core():
         def device_body():
 
             tranfer_size_elemnts_in = host_elements
-            tranfer_size_elemnts_out = (host_elements*host_elements)
+            #on GB
+            tranfer_size_elemnts_out = (268435456)*1
 
 
             eprint("[INFO] tranfer_size_elemnts_in: {}".format(tranfer_size_elemnts_in))
@@ -85,6 +86,8 @@ def external_mem_to_core():
 
             eprint("[INFO] iters_outer: {}".format(iters_outer))
             eprint("[INFO] iters_inner: {}".format(iters_inner))
+
+            eprint("[INFO] max aquire out: {}".format(tranfer_size_elemnts_out//tile_ty_size_out))
 
             eprint("[INFO] transfers_inner: {}".format(transfers_inner))
 
@@ -177,7 +180,7 @@ def external_mem_to_core():
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
 
 
-                            i32()
+
                             #MemRefValue(%35, memref<2048xi32>)
 
                             init_i = arith.constant(0,index= True)
@@ -228,7 +231,7 @@ def external_mem_to_core():
                                 with if_((join_cnt[0] == tile_ty_size_out) ):
                                     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
 
-
+                                    global_join_cnt[0] = global_join_cnt[0] + 1
                                     #todo get rid of this copy it is expensive
                                     call(passThroughLine,
                                          [output_buffer, out, tile_ty_size_out])
