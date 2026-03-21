@@ -43,7 +43,7 @@ void odd_even(
                     objectfifo_acquire(&of_out);
                     int32_t *input1 = (int32_t *)objectfifo_get_buffer(&of_in1, j);
                     int32_t *out = (int32_t *)objectfifo_get_buffer(&of_out, j);
-
+                     event0();
                     int join_count = 0;
                     AIE_LOOP_UNROLL(2)
                     for (int i = 0; i < 64; i++) {
@@ -58,6 +58,7 @@ void odd_even(
                         join_count++;
                       }
                    }
+                    event1();
 
 
                     //of_out1.release(ObjectFifoPort.Produce, 1)
@@ -69,19 +70,8 @@ void odd_even(
                 objectfifo_release(&of_in);
             }
 
-
-
-
-
-
     }
 
-
-
-
-
-
-event1();
 }
 
 } // extern "C"

@@ -116,28 +116,29 @@ def external_mem_to_core():
             ShimTile00 = tile(0, 0)
             #ShimTile10 = tile(1, 0)
             ShimTile20 = tile(2, 0)
-            #MemTile01 = tile(0, 1)
+            MemTile01 = tile(0, 1)
             #MemTile11 = tile(1, 1)
             ComputeTile02 = tile(0, 2)
             #ComputeTile12 = tile(1, 2)
 
             # AIE-array data movement with object fifos
             # Input
-            #of_in = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
-            of_in = object_fifo("in1", ShimTile00, ComputeTile02, 2, tile_ty_in)
-            of_in1 = object_fifo("in1_inner", ShimTile00, ComputeTile02, 2, tile_ty_in)
-            #object_fifo_link(of_in, of_in1)
+            tile_ty = np.ndarray[(host_elements,), np.dtype[np.int32]]
+            of_in_sh = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
+            of_in = object_fifo("in1", MemTile01, ComputeTile02, 2, tile_ty_in)
+            object_fifo_link(of_in_sh, of_in)
+
+            of_in_inner_sh = object_fifo("in_inner", ShimTile00, MemTile01, 2, tile_ty)
+            of_in1 = object_fifo("in1_inner", MemTile01, ComputeTile02, 2, tile_ty_in)
+            object_fifo_link(of_in_inner_sh, of_in1)
 
 
 
             # Output
-            #of_out1 = object_fifo("out1", ComputeTile02, MemTile01, 2, tile_ty)
-            of_out = object_fifo("out", ComputeTile02, ShimTile00, 2, tile_ty_out)
-            #object_fifo_link(of_out1, of_out)
-
-            #of_out1_odd = object_fifo("outodd", ComputeTile02, MemTile01, 2, tile_ty)
-            #of_out1_odd = object_fifo("odd", ComputeTile02, ShimTile00, 2, tile_ty)
-            #object_fifo_link(of_out1_odd, of_out_odd)
+            tile_ty_out_mem = np.ndarray[(tile_ty_size_out,), np.dtype[np.int32]]
+            of_out = object_fifo("out", ComputeTile02, MemTile01, 2, tile_ty_out)
+            of_out_sh = object_fifo("out1", MemTile01, ShimTile00, 2, tile_ty_out_mem)
+            object_fifo_link( of_out,of_out_sh)
 
 
 
@@ -147,44 +148,45 @@ def external_mem_to_core():
             # Compute tile
             @core(ComputeTile02, "odd_even.o",dynamic_objfifo_lowering=False)
             def core_body_02():
-                in_buf0 = of_in.get_buffer(0)
-                in_buf1 = of_in.get_buffer(1)
-                in_acq, in_rel = of_in.get_lock(ObjectFifoPort.Consume)
+                for _ in range_(0xFFFFFFFF):
+                    in_buf0 = of_in.get_buffer(0)
+                    in_buf1 = of_in.get_buffer(1)
+                    in_acq, in_rel = of_in.get_lock(ObjectFifoPort.Consume)
 
-                in1_buf0 = of_in1.get_buffer(0)
-                in1_buf1 = of_in1.get_buffer(1)
-                in1_acq, in1_rel = of_in1.get_lock(ObjectFifoPort.Consume)
+                    in1_buf0 = of_in1.get_buffer(0)
+                    in1_buf1 = of_in1.get_buffer(1)
+                    in1_acq, in1_rel = of_in1.get_lock(ObjectFifoPort.Consume)
 
-                out_buf0 = of_out.get_buffer(0)
-                out_buf1 = of_out.get_buffer(1)
-                out_acq, out_rel = of_out.get_lock(ObjectFifoPort.Produce)
+                    out_buf0 = of_out.get_buffer(0)
+                    out_buf1 = of_out.get_buffer(1)
+                    out_acq, out_rel = of_out.get_lock(ObjectFifoPort.Produce)
 
-                # C kernel owns the compute loop and buffer rotation
-                odd_even(
-                    in_buf0,
-                    in_buf1,
-                    in1_buf0,
-                    in1_buf1,
-                    out_buf0,
-                    out_buf1,
-                    in_acq,
-                    in_rel,
-                    in1_acq,
-                    in1_rel,
-                    out_acq,
-                    out_rel,
-                )
-
-
-
+                    # C kernel owns the compute loop and buffer rotation
+                    odd_even(
+                        in_buf0,
+                        in_buf1,
+                        in1_buf0,
+                        in1_buf1,
+                        out_buf0,
+                        out_buf1,
+                        in_acq,
+                        in_rel,
+                        in1_acq,
+                        in1_rel,
+                        out_acq,
+                        out_rel,
+                    )
 
 
 
 
-            tiles_to_trace = [ComputeTile02, ShimTile00]
+
+
+
+            tiles_to_trace = [ShimTile00,MemTile01,ComputeTile02 ]
             if trace_size > 0:
                 trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
-                #todo use other shimtile to trace?
+
 
 
 
@@ -209,15 +211,15 @@ def external_mem_to_core():
 
 
 
-                in_task = shim_dma_single_bd_task(of_in, inTensor, offset= 0 ,sizes=[1, 1, 1, tranfer_size_elemnts_in],issue_token=False)
+                in_task = shim_dma_single_bd_task(of_in_sh, inTensor, offset= 0 ,sizes=[1, 1, 1, tranfer_size_elemnts_in],issue_token=False)
                 out_task = shim_dma_single_bd_task(
-                    of_out, outOddTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=True
+                    of_out_sh, outOddTensor, offset=0, sizes=[1, 1, 1, tranfer_size_elemnts_out], issue_token=True
                 )
 
                 dma_start_task(in_task,out_task)
 
                 for i in range(transfers_inner):
-                    inner_in_task1 = shim_dma_single_bd_task(of_in1, innerinTensor, offset=0,
+                    inner_in_task1 = shim_dma_single_bd_task(of_in_inner_sh, innerinTensor, offset=0,
                                                       sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
 
                     dma_start_task(inner_in_task1)
@@ -228,7 +230,7 @@ def external_mem_to_core():
                 dma_await_task(out_task)
                 dma_free_task(in_task)
 
-                    #trace_utils.gen_trace_done_aie2(ShimTile20)
+                trace_utils.gen_trace_done_aie2(ShimTile20)
 
 
 

@@ -126,7 +126,11 @@ def external_mem_to_core():
 
             object_fifo_link(of_in, [of_in1, of_in2], [], [0, 64])
 
-            of_in_inner = object_fifo("in1_inner", ShimTile00, [ComputeTile02,ComputeTile03], 3, tile_ty_in)
+            mem_ty_innner_mem_tile = np.ndarray[(host_elements,), np.dtype[np.int32]]
+
+            of_in_inner_sh = object_fifo("in_inner", ShimTile00, MemTile01, 2, mem_ty_innner_mem_tile)
+            of_in_inner = object_fifo("in1_inner", MemTile01, [ComputeTile02,ComputeTile03], 2, tile_ty_in)
+            object_fifo_link(of_in_inner_sh, of_in_inner)
 
 
 
@@ -192,7 +196,7 @@ def external_mem_to_core():
 
 
 
-            tiles_to_trace = [ComputeTile02, ShimTile00]
+            tiles_to_trace = [ComputeTile02, ShimTile00,MemTile01,ComputeTile03]
             if trace_size > 0:
                 trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
                 #todo use other shimtile to trace?
@@ -228,7 +232,7 @@ def external_mem_to_core():
                 dma_start_task(in_task,out_task)
 
                 for i in range(transfers_inner):
-                    inner_in_task1 = shim_dma_single_bd_task(of_in_inner, innerinTensor, offset=0,
+                    inner_in_task1 = shim_dma_single_bd_task(of_in_inner_sh, innerinTensor, offset=0,
                                                       sizes=[1, 1, 1, tranfer_size_elemnts_in], issue_token=True)
 
                     dma_start_task(inner_in_task1)
@@ -239,7 +243,7 @@ def external_mem_to_core():
                 dma_await_task(out_task)
                 dma_free_task(in_task)
 
-                    #trace_utils.gen_trace_done_aie2(ShimTile20)
+                trace_utils.gen_trace_done_aie2(ShimTile20)
 
 
 

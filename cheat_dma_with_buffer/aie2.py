@@ -58,7 +58,7 @@ def external_mem_to_core():
 
             tranfer_size_elemnts_in = host_elements
             #on GB
-            tranfer_size_elemnts_out = (268435456)*1
+            tranfer_size_elemnts_out = (268435456)*2
 
 
             eprint("[INFO] tranfer_size_elemnts_in: {}".format(tranfer_size_elemnts_in))
@@ -230,14 +230,14 @@ def external_mem_to_core():
 
                                 with if_((join_cnt[0] == tile_ty_size_out) ):
                                     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
-
+                                    #
                                     global_join_cnt[0] = global_join_cnt[0] + 1
-                                    #todo get rid of this copy it is expensive
+                                    # #todo get rid of this copy it is expensive
                                     call(passThroughLine,
                                          [output_buffer, out, tile_ty_size_out])
-
-                                    #for z in range_(tile_ty_size_out):
-                                    #    out[z] = output_buffer[z]
+                                    #
+                                    # #for z in range_(tile_ty_size_out):
+                                    # #    out[z] = output_buffer[z]
                                     of_out1.release(ObjectFifoPort.Produce, 1)
                                     join_cnt[0] = 0
 
@@ -319,6 +319,7 @@ def external_mem_to_core():
                         shim=ShimTile20,
                         ddr_id=4,# 4 -> group_id(7)
                         trace_size=trace_size,
+
                     )
 
 

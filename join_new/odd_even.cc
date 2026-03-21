@@ -29,8 +29,9 @@ void odd_even(int32_t *input, int32_t * restrict input1,  int32_t * restrict val
         }
         join_count++;
   }
-  event1();
+
 }
+event1();
 }
 
 } // extern "C"

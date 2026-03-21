@@ -121,7 +121,7 @@ int main(int argc, const char *argv[]) {
    std::cout << "host_elements: " << host_elements << "\n";
   int64_t IN_SIZE = host_elements;
   //one GB
-  int64_t OUT_SIZE = 268435456 *1;
+  int64_t OUT_SIZE = 268435456 *2;
   bool enable_ctrl_pkts = false;
 
 

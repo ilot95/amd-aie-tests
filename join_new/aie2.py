@@ -120,7 +120,7 @@ def external_mem_to_core():
             object_fifo_link(of_in_sh, of_in1)
             object_fifo_link(of_in_inner_sh, of_in_inner)
 
-            tile_ty_out_mem = np.ndarray[(tile_ty_size_out *4,), np.dtype[np.int32]]
+            tile_ty_out_mem = np.ndarray[(tile_ty_size_out,), np.dtype[np.int32]]
             # Output
             of_out1 = object_fifo("out", ComputeTile02, MemTile01, 2, tile_ty_out)
             of_out = object_fifo("out1", MemTile01, ShimTile00, 2, tile_ty_out_mem)
@@ -175,7 +175,7 @@ def external_mem_to_core():
 
 
 
-            tiles_to_trace = [ComputeTile02, ShimTile00]
+            tiles_to_trace = [ComputeTile02, ShimTile00,MemTile01]
             if trace_size > 0:
                 trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
                 #todo use other shimtile to trace?
@@ -222,7 +222,7 @@ def external_mem_to_core():
                 dma_await_task(out_task)
                 dma_free_task(in_task)
 
-                    #trace_utils.gen_trace_done_aie2(ShimTile20)
+                trace_utils.gen_trace_done_aie2(ShimTile20)
 
 
 

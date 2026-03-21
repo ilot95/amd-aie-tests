@@ -233,7 +233,7 @@ def external_mem_to_core():
 
 
 
-            tiles_to_trace = [ComputeTile02, ShimTile00]
+            tiles_to_trace = [ShimTile00]
             if trace_size > 0:
                 trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
                 #todo use other shimtile to trace?
@@ -275,7 +275,7 @@ def external_mem_to_core():
                 dma_await_task(out_task)
                 dma_free_task(in_task)
 
-                #trace_utils.gen_trace_done_aie2(ShimTile20)
+                trace_utils.gen_trace_done_aie2(ShimTile20)
 
 
 
