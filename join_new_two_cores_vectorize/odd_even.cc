@@ -42,17 +42,7 @@ void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * re
        }
        inputv +=16;
 
-      /*AIE_LOOP_UNROLL_FULL
-      for (int j = 0; j < 64; j++) {
-        if(input[i] == input1[j]){
-            value[join_count] = input[i];
 
-        }else{
-            value[join_count] = -1;
-        }
-        join_count++;
-
-  }*/
 
 }
 event1();
