@@ -26,7 +26,8 @@ void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * re
   for (int i = 0; i < 4; i++) {
         aie::vector<int32_t, 16> A0 = aie::load_v<16>(inputv);
        //
-         AIE_LOOP_UNROLL_FULL
+         //AIE_LOOP_UNROLL_FULL
+         //AIE_LOOP_UNROLL(2)
          for (int z = 0; z < 16; z++) {
             int32_t *__restrict input1v = input1;
             AIE_LOOP_UNROLL_FULL
@@ -36,8 +37,21 @@ void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * re
             auto mask =  aie::eq(A1,A0[z]);
 
 
-            auto newvec = aie::select(-1,A1,mask);
-            aie::store_v(valuev,newvec);
+            aie::vector<int32_t, 16> comp_vec = aie::broadcast(-1);
+            int k = 0;
+            AIE_LOOP_UNROLL_FULL
+            for (int t = 0; t < 16; ++t) {
+                /*if (mask.test(t)) {
+                    comp_vec[k] = A1[t];
+                    k++;
+                }*/
+                comp_vec[k] = mask.test(t) ? A1[t] : -1 ;
+                k = k + mask.test(t);
+            }
+            //aie::store_unaligned_v(valuev,comp_vec);
+            aie::store_v(valuev,comp_vec);
+            //auto newvec = aie::select(-1,A1,mask);
+            //aie::store_v(valuev,newvec);
             valuev +=16;
             input1v += 16;
        }
