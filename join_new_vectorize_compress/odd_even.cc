@@ -48,20 +48,22 @@ void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * re
                 comp_vec[k] = mask.test(t) ? A1[t] : -1 ;
                 k = k + mask.test(t);
             }
-            //aie::store_unaligned_v(valuev,comp_vec);
-            aie::store_v(valuev,comp_vec);
+            aie::store_unaligned_v(valuev,comp_vec);
+            //aie::store_v(valuev,comp_vec);
             //auto newvec = aie::select(-1,A1,mask);
             //aie::store_v(valuev,newvec);
-            valuev +=16;
+            valuev +=k;
             input1v += 16;
        }
        }
        inputv +=16;
 
-
-
-
 }
+ for (auto vv = valuev; vv < value + 4096;vv++) {
+    *vv= -1;
+ }
+
+
 event1();
 }
 
