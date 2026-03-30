@@ -35,7 +35,7 @@ void passThroughLine(int32_t *in, int32_t *out, int32_t lineWidth) {
 }
 
 
-void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * restrict value,const int32_t N) {
+void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * restrict value,const int32_t N,int32_t * restrict elems_produced) {
   event0();
 
 
@@ -80,6 +80,9 @@ void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * re
             //auto newvec = aie::select(-1,A1,mask);
             //aie::store_v(valuev,newvec);
             valuev +=k;
+
+            join_count +=k;
+
             input1v += 16;
        }
        }
@@ -90,6 +93,8 @@ void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * re
  for (auto vv = valuev; vv < value + 4096;vv++) {
     *vv= -1;
  }
+ //*elems_produced = value + 4096 - valuev;
+ *elems_produced = join_count;
 
 
 event1();

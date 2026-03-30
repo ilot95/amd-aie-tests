@@ -392,6 +392,10 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
               << std::endl;
           cpu_time_total += cpu_time;
 
+         std::cout << ""
+              << "ref.size(): " << ref.size() << ""
+              << std::endl;
+
         for (uint32_t i = 0; i < IN_SIZE; i++) {
             for (uint32_t j = 0; j < IN_SIZE; j++) {
             if(bufInA[i] == bufInB[j]){

@@ -92,11 +92,12 @@ def external_mem_to_core():
             data_ty_in = np.ndarray[(tranfer_size_elemnts_in,), np.dtype[np.int32]]
             data_ty_out = np.ndarray[(tranfer_size_elemnts_out,), np.dtype[np.int32]]
 
+            elms_produced_ty = np.ndarray[(1,), np.dtype[np.int32]]
 
             # External, binary kernel definition
             odd_even = external_func(
                 "odd_even",
-                inputs=[tile_ty_in, tile_ty_in,tile_ty_out, np.int32]
+                inputs=[tile_ty_in, tile_ty_in,tile_ty_out, np.int32,elms_produced_ty]
             )
 
             passThroughLine = external_func(
@@ -158,7 +159,7 @@ def external_mem_to_core():
                             out = trans.acquire(ObjectFifoPort.Produce, 1)
                             numer_el = of_numer_els.acquire(ObjectFifoPort.Produce, 1)
 
-                            call(odd_even, [elem_in, elem_inner, out, tile_ty_size_in])
+                            call(odd_even, [elem_in, elem_inner, out, tile_ty_size_in,numer_el])
 
                             of_numer_els.release(ObjectFifoPort.Produce, 1)
                             trans.release(ObjectFifoPort.Produce, 1)
@@ -166,6 +167,15 @@ def external_mem_to_core():
 
 
                         of_in1.release(ObjectFifoPort.Consume, 1)
+
+            ty_one_int = np.ndarray[(1,), np.dtype[np.int32]]
+
+            elemt_coutn = aie.buffer(
+                tile=ComputeTile12,
+                datatype=ty_one_int,
+                name=f"join_cnt",
+                initial_value=np.array(0, dtype=np.int32)
+            )
 
             @core(ComputeTile12, "odd_even.o", dynamic_objfifo_lowering=False)
             def core_body_12():
@@ -178,12 +188,15 @@ def external_mem_to_core():
                     # out_buf0 = of_out.get_buffer(0)
                     # out_buf1 = of_out.get_buffer(1)
                     # out_acq, out_rel = of_out.get_lock(ObjectFifoPort.Produce)
+                    elemt_coutn[0] = 0
+
                     for _ in range_(iters_outer*iters_inner):
                         el = trans.acquire(ObjectFifoPort.Consume, 1)
                         numer_el = of_numer_els.acquire(ObjectFifoPort.Consume, 1)
                         out = of_out1.acquire(ObjectFifoPort.Produce, 1)
                         call(passThroughLine,
                              [el, out, 64*64])
+                        elemt_coutn[0] = numer_el[0] +elemt_coutn[0]
                         of_out1.release(ObjectFifoPort.Produce, 1)
                         of_numer_els.release(ObjectFifoPort.Consume, 1)
                         trans.release(ObjectFifoPort.Consume, 1)
@@ -191,7 +204,7 @@ def external_mem_to_core():
                     elem_done = of_done.acquire(ObjectFifoPort.Produce, 1)
                     for i in range_(16):
                         elem_done[i] = 77
-                    #elem_done[0] = join_cnt[0]
+                    elem_done[0] =  elemt_coutn[0]
                     of_done.release(ObjectFifoPort.Produce, 1)
 
 
