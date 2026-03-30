@@ -5,6 +5,7 @@
 #include <aie_api/aie.hpp>
 #include <aie_api/utils.hpp>
 #include "aie_kernel_utils.h"
+#include "aie_objectfifo.h"
 
 
 
@@ -28,6 +29,55 @@ __attribute__((noinline)) void passThrough_aie(T *restrict in, T *restrict out,
 }
 
 extern "C" {
+
+
+void writeout(
+            int32_t * restrict in_buf0, int32_t * restrict in_buf1,
+            int32_t * restrict in_of_numer0, int32_t * in_of_numer1,
+            int32_t * restrict out_buf0,int32_t * restrict out_buf1,
+            int64_t in_acq_lock,int64_t in_rel_lock,
+            int64_t in_of_numer_acq_lock,int64_t in_of_numer_rel_lock,
+            int64_t out_acq_lock, int64_t out_rel_lock,
+            int32_t * restrict elems_produced
+            ) {
+            *elems_produced =0;
+
+            objectfifo_t of_in = {(int32_t)in_acq_lock, (int32_t)in_rel_lock, -1, 1, 2,
+                                {in_buf0, in_buf1}};
+            objectfifo_t of_in_of_numer = {(int32_t)in_of_numer_acq_lock, (int32_t)in_of_numer_rel_lock, -1, 1, 2,
+                                {in_of_numer0, in_of_numer1}};
+
+            objectfifo_t of_out = {(int32_t)out_acq_lock, (int32_t)out_rel_lock, -1, 1, 2,
+                                 {out_buf0, out_buf1}};
+            event0();
+            for (int i = 0; i < 65536; i++) {
+                objectfifo_acquire(&of_in);
+                int32_t *input = (int32_t *)objectfifo_get_buffer(&of_in, i);
+
+                objectfifo_acquire(&of_in_of_numer);
+                int32_t *numer_el = (int32_t *)objectfifo_get_buffer(&of_in_of_numer, i);
+                *elems_produced += *numer_el;
+
+                objectfifo_acquire(&of_out);
+                int32_t *out = (int32_t *)objectfifo_get_buffer(&of_out, i);
+
+               v64uint8 *restrict outPtr = (v64uint8 *)out;
+               v64uint8 *restrict inPtr = (v64uint8 *)input;
+               AIE_PREPARE_FOR_PIPELINING
+              AIE_LOOP_MIN_ITERATION_COUNT(6)
+              for (int j = 0; j < (4096); j += 16) // Nx samples per loop
+              {
+                *outPtr++ = *inPtr++;
+              }
+
+
+                 objectfifo_release(&of_out);
+                 objectfifo_release(&of_in_of_numer);
+                objectfifo_release(&of_in);
+
+            }
+             event1();
+         }
 
 
 void passThroughLine(int32_t *in, int32_t *out, int32_t lineWidth) {

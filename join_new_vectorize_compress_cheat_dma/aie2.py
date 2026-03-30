@@ -105,6 +105,25 @@ def external_mem_to_core():
                 inputs=[tile_ty_out, tile_ty_out, np.int32]
             )
 
+            writeout = external_func(
+                "writeout",
+                inputs=[
+                    tile_ty_out,  # in buffer 0
+                    tile_ty_out,  # in buffer 1
+                    elms_produced_ty,  # in buffer 0
+                    elms_produced_ty,  # in buffer 1
+                    tile_ty_out, # out buffer 0
+                    tile_ty_out, # out buffer 1
+                    T.index(),  # in acq_lock
+                    T.index(),  # in rel_lock
+                    T.index(),  # inelems acq_lock
+                    T.index(),  # inelems rel_lock
+                    T.index(),  # out acq_lock
+                    T.index(),  # out rel_lock
+                    elms_produced_ty,
+                ]
+            )
+
             # Tile declarations
             ShimTile00 = tile(0, 0)
             ShimTile10 = tile(1, 0)
@@ -179,27 +198,40 @@ def external_mem_to_core():
 
             @core(ComputeTile12, "odd_even.o", dynamic_objfifo_lowering=False)
             def core_body_12():
+                elemt_coutn[0] = 0
                 for _ in range_(0xFFFFFFFF):
-                    # in_buf0 = trans.get_buffer(0)
-                    # in_buf1 = trans.get_buffer(1)
-                    # in_acq, in_rel = trans.get_lock(ObjectFifoPort.Consume)
-                    #
-                    #
-                    # out_buf0 = of_out.get_buffer(0)
-                    # out_buf1 = of_out.get_buffer(1)
-                    # out_acq, out_rel = of_out.get_lock(ObjectFifoPort.Produce)
-                    elemt_coutn[0] = 0
+                    in_buf0 = trans.get_buffer(0)
+                    in_buf1 = trans.get_buffer(1)
+                    in_acq, in_rel = trans.get_lock(ObjectFifoPort.Consume)
 
-                    for _ in range_(iters_outer*iters_inner):
-                        el = trans.acquire(ObjectFifoPort.Consume, 1)
-                        numer_el = of_numer_els.acquire(ObjectFifoPort.Consume, 1)
-                        out = of_out1.acquire(ObjectFifoPort.Produce, 1)
-                        call(passThroughLine,
-                             [el, out, 64*64])
-                        elemt_coutn[0] = numer_el[0] +elemt_coutn[0]
-                        of_out1.release(ObjectFifoPort.Produce, 1)
-                        of_numer_els.release(ObjectFifoPort.Consume, 1)
-                        trans.release(ObjectFifoPort.Consume, 1)
+                    numer_els_buf0 = of_numer_els.get_buffer(0)
+                    numer_els_buf1 = of_numer_els.get_buffer(1)
+                    numer_els_acq, numer_els_rel = of_numer_els.get_lock(ObjectFifoPort.Consume)
+
+
+                    out_buf0 = of_out1.get_buffer(0)
+                    out_buf1 = of_out1.get_buffer(1)
+                    out_acq, out_rel = of_out1.get_lock(ObjectFifoPort.Produce)
+
+                    writeout(in_buf0,in_buf1,
+                             numer_els_buf0,numer_els_buf1,
+                             out_buf0,out_buf1,
+                             in_acq,in_rel,
+                             numer_els_acq, numer_els_rel,
+                             out_acq,out_rel,
+                             elemt_coutn)
+
+                    # elemt_coutn[0] = 0
+                    # for _ in range_(iters_outer*iters_inner):
+                    #     el = trans.acquire(ObjectFifoPort.Consume, 1)
+                    #     numer_el = of_numer_els.acquire(ObjectFifoPort.Consume, 1)
+                    #     out = of_out1.acquire(ObjectFifoPort.Produce, 1)
+                    #     call(passThroughLine,
+                    #          [el, out, 64*64])
+                    #     elemt_coutn[0] = numer_el[0] +elemt_coutn[0]
+                    #     of_out1.release(ObjectFifoPort.Produce, 1)
+                    #     of_numer_els.release(ObjectFifoPort.Consume, 1)
+                    #     trans.release(ObjectFifoPort.Consume, 1)
 
                     elem_done = of_done.acquire(ObjectFifoPort.Produce, 1)
                     for i in range_(16):
@@ -214,7 +246,7 @@ def external_mem_to_core():
 
 
 
-            tiles_to_trace = [ComputeTile02, ShimTile00,MemTile01]
+            tiles_to_trace = [ComputeTile02,ComputeTile12 ,ShimTile00,MemTile01]
             if trace_size > 0:
                 trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
                 #todo use other shimtile to trace?

@@ -55,7 +55,7 @@ endif
 
 build_xchesscc/odd_even.o: ${srcdir}/odd_even.cc
 	mkdir -p ${@D}
-	cd ${@D} && ${KERNEL_CC} ${KERNEL_CFLAGS} ${KERNEL_DEFINES} -c $< -o ${@F}
+	cd ${@D} && ${KERNEL_CC} ${KERNEL_CFLAGS}  -I ${MLIR_AIE_DIR}/aie_runtime_lib/AIE2P ${KERNEL_DEFINES} -c $< -o ${@F}
 
 
 #--dynamic-objFifos   --packet-sw-objFifos
