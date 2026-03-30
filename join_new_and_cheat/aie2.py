@@ -178,7 +178,7 @@ def external_mem_to_core():
 
 
             @core(ComputeTile12, "odd_even.o", dynamic_objfifo_lowering=True)
-            def core_body_02():
+            def core_body_12():
 
                 for _ in range_(0xFFFFFFFF):
                     # for _ in range_(iters):
