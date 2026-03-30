@@ -59,6 +59,7 @@ void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * re
        inputv +=16;
 
 }
+//todo vectorize this
  for (auto vv = valuev; vv < value + 4096;vv++) {
     *vv= -1;
  }
