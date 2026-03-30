@@ -393,11 +393,11 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             }
         }
         }
-        std::cout << "\nref:" << std::endl;
+        /*std::cout << "\nref:" << std::endl;
         for (auto& re :map_ref) {
 
             std::cout << re.first << "  "<< re.second << "\n";
-        }
+        }*/
 
         //std::unordered_map<DATATYPE, size_t> result;
         std::map<DATATYPE, size_t> result;
@@ -405,11 +405,11 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             result[bufOut[i]] ++;
         }
 
-        std::cout << "\nresult:" << std::endl;
+        /*std::cout << "\nresult:" << std::endl;
         for (auto& re :result) {
 
             std::cout << re.first << "  "<< re.second << "\n";
-        }
+        }*/
 
         if(map_ref==result){
             std::cout << "equal"<< "\n";
