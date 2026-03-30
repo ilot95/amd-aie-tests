@@ -127,6 +127,9 @@ def external_mem_to_core():
 
             trans = object_fifo("trans", ComputeTile02, ComputeTile12, 2, tile_ty_out)
 
+            one_element = np.ndarray[(1,), np.dtype[np.int32]]
+            of_numer_els = object_fifo("of_numer_els", ComputeTile02, ComputeTile12, 2, one_element)
+
 
             tile_ty_out_mem = np.ndarray[(tile_ty_size_out,), np.dtype[np.int32]]
             # Output
@@ -153,9 +156,11 @@ def external_mem_to_core():
                         for _ in range_(iters_inner):
                             elem_inner = of_in_inner.acquire(ObjectFifoPort.Consume, 1)
                             out = trans.acquire(ObjectFifoPort.Produce, 1)
+                            numer_el = of_numer_els.acquire(ObjectFifoPort.Produce, 1)
 
                             call(odd_even, [elem_in, elem_inner, out, tile_ty_size_in])
 
+                            of_numer_els.release(ObjectFifoPort.Produce, 1)
                             trans.release(ObjectFifoPort.Produce, 1)
                             of_in_inner.release(ObjectFifoPort.Consume, 1)
 
@@ -175,10 +180,12 @@ def external_mem_to_core():
                     # out_acq, out_rel = of_out.get_lock(ObjectFifoPort.Produce)
                     for _ in range_(iters_outer*iters_inner):
                         el = trans.acquire(ObjectFifoPort.Consume, 1)
+                        numer_el = of_numer_els.acquire(ObjectFifoPort.Consume, 1)
                         out = of_out1.acquire(ObjectFifoPort.Produce, 1)
                         call(passThroughLine,
                              [el, out, 64*64])
                         of_out1.release(ObjectFifoPort.Produce, 1)
+                        of_numer_els.release(ObjectFifoPort.Consume, 1)
                         trans.release(ObjectFifoPort.Consume, 1)
 
                     elem_done = of_done.acquire(ObjectFifoPort.Produce, 1)
