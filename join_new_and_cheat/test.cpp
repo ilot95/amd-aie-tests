@@ -275,6 +275,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
 
       // Zero out buffer bo_outC
       memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+      memset(bufOut, 0, 16 * sizeof(uint32_t));
 
       if (trace_size > 0 ) {
           //zero out buffTrace each iteration???
