@@ -272,9 +272,9 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
 
 
       // Zero out buffer bo_outC
-      memset(bufOut, 0, OUT_SIZE * sizeof(DATATYPE));
+      memset(bufOut, -1, OUT_SIZE * sizeof(DATATYPE));
 
-      memset(bufOut, 0, 16 * sizeof(uint32_t));
+      memset(bufDone, 0, 16 * sizeof(uint32_t));
 
       if (trace_size > 0 ) {
           //zero out buffTrace each iteration???
@@ -342,9 +342,9 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
               << "NPU time: " << npu_time << "us."
               << std::endl;
 
-  //if (iter < n_warmup_iterations)
+  if (iter < n_warmup_iterations)
       /* Warmup iterations do not count towards average runtime. */
-      //continue;
+      continue;
 
     npu_time_total += npu_time;
     npu_time_min = (npu_time < npu_time_min) ? npu_time : npu_time_min;
@@ -415,8 +415,8 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
         //std::unordered_map<DATATYPE, size_t> result;
         std::map<DATATYPE, size_t> result;
 
-        //for (uint32_t i = 0; i < OUT_SIZE; i++) {
-        for (uint32_t i = 0; i < bufDone[0]; i++) {
+        //for (uint32_t i = 0; i < bufDone[0] OUT_SIZE; i++) {
+        for (uint32_t i = 0; i < OUT_SIZE; i++) {
             result[bufOut[i]] ++;
         }
 
