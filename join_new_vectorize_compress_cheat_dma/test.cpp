@@ -119,7 +119,9 @@ int main(int argc, const char *argv[]) {
   int64_t host_elements = vm["host_elements"].as<int64_t>();
    std::cout << "host_elements: " << host_elements << "\n";
   int64_t IN_SIZE = host_elements;
-  int64_t OUT_SIZE = IN_SIZE *IN_SIZE;
+  //int64_t OUT_SIZE = IN_SIZE *IN_SIZE;
+  //one GB
+  int64_t OUT_SIZE =  268435456;
   bool enable_ctrl_pkts = false;
 
 
@@ -402,7 +404,7 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             //ref.push_back(bufInA[i]);
             map_ref[bufInA[i]] ++;
             }else{
-                map_ref[-1]++;
+                //map_ref[-1]++;
             }
         }
         }
@@ -417,7 +419,9 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
 
         //for (uint32_t i = 0; i < bufDone[0] OUT_SIZE; i++) {
         for (uint32_t i = 0; i < OUT_SIZE; i++) {
+            if(bufOut[i] !=-1){
             result[bufOut[i]] ++;
+            }
         }
 
         std::cout << "\nresult:" << std::endl;

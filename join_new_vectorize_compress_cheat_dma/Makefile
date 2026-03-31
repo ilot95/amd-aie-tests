@@ -20,7 +20,7 @@ oneMBElements =$(shell echo 2*128*1024 | bc)
 # 32768 does not work (overflow)
 #max is 16384
 #hostElements = 16384
-hostElements?=16384
+hostElements?=32768
 
 CONFID:= ${hostElements}.conf
 build_mlir/$(CONFID):

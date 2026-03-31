@@ -56,8 +56,10 @@ void writeout(
             int freeOutBuf = 4096;
             int outCount = 0;
             int count_out_ac = 1;
-
-            for (int i = 0; i < 65536; i++) {
+            //todo this value needs to be calculated
+            //262144
+            //for (int i = 0; i < 65536; i++) {
+            for (int i = 0; i < 262144; i++) {
                 objectfifo_acquire(&of_in);
                 int32_t *input = (int32_t *)objectfifo_get_buffer(&of_in, i);
 

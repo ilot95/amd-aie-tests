@@ -52,7 +52,8 @@ def external_mem_to_core():
 
 
             tranfer_size_elemnts_in = host_elements
-            tranfer_size_elemnts_out = (host_elements*host_elements)
+            #one GB
+            tranfer_size_elemnts_out = (268435456)
 
 
             eprint("[INFO] tranfer_size_elemnts_in: {}".format(tranfer_size_elemnts_in))
@@ -135,10 +136,10 @@ def external_mem_to_core():
 
             # AIE-array data movement with object fifos
             # Input
-            tile_ty = np.ndarray[(host_elements,), np.dtype[np.int32]]
+            #tile_ty = np.ndarray[(host_elements,), np.dtype[np.int32]]
 
-            of_in_sh = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty)
-            of_in_inner_sh = object_fifo("in_inner", ShimTile00, MemTile01, 2, tile_ty)
+            of_in_sh = object_fifo("in", ShimTile00, MemTile01, 2, tile_ty_in)
+            of_in_inner_sh = object_fifo("in_inner", ShimTile00, MemTile01, 2, tile_ty_in)
 
             of_in1 = object_fifo("in1", MemTile01, ComputeTile02, 2, tile_ty_in)
             of_in_inner = object_fifo("in1_inner", MemTile01, ComputeTile02, 2, tile_ty_in)
