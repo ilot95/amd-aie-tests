@@ -38,7 +38,9 @@ void writeout(
             int64_t in_acq_lock,int64_t in_rel_lock,
             int64_t in_of_numer_acq_lock,int64_t in_of_numer_rel_lock,
             int64_t out_acq_lock, int64_t out_rel_lock,
-            int32_t * restrict elems_produced
+            int32_t * restrict elems_produced,
+            const int32_t iters_outer,
+            const int32_t iters_inner
             ) {
             *elems_produced =0;
 
@@ -56,10 +58,13 @@ void writeout(
             int freeOutBuf = 4096;
             int outCount = 0;
             int count_out_ac = 1;
-            //todo this value needs to be calculated
+
             //262144
             //for (int i = 0; i < 65536; i++) {
-            for (int i = 0; i < 262144; i++) {
+            //todo why are two loops not possible
+            for (int64_t i = 0; i < ((int64_t)iters_outer)*iters_inner; i++) {
+            //for (int i = 0; i < 512; i++) {
+            //for (int z = 0; z < 512; z++) {
                 objectfifo_acquire(&of_in);
                 int32_t *input = (int32_t *)objectfifo_get_buffer(&of_in, i);
 
@@ -99,7 +104,7 @@ void writeout(
                 objectfifo_release(&of_in_of_numer);
                 objectfifo_release(&of_in);
 
-            }
+            }//}
             for (int j = outCount; j < 4096; j += 1){
             out[j] = -1;
             }

@@ -122,6 +122,8 @@ def external_mem_to_core():
                     T.index(),  # out acq_lock
                     T.index(),  # out rel_lock
                     elms_produced_ty,
+                    np.int32,#iters_outer
+                    np.int32,#iters_inner
                 ]
             )
 
@@ -220,7 +222,10 @@ def external_mem_to_core():
                              in_acq,in_rel,
                              numer_els_acq, numer_els_rel,
                              out_acq,out_rel,
-                             elemt_coutn)
+                             elemt_coutn,
+                             iters_outer,
+                             iters_inner
+                             )
 
                     # elemt_coutn[0] = 0
                     # for _ in range_(iters_outer*iters_inner):
