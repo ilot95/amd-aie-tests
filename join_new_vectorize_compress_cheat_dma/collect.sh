@@ -1,4 +1,4 @@
-for elements in 64 128 256 512 1024 2048 4096 8192 16384
+for elements in 1024 2048 4096 8192 16384 32768 65536 131072 262144
 do
-    make run_xchesscc hostElements=${elements}
+    make clean && make run_xchesscc hostElements=${elements}
 done

@@ -244,7 +244,7 @@ int main(int argc, const char *argv[]) {
 std::mt19937 rng(seed);
 
 // Define distribution (range 1–100)
-std::uniform_int_distribution<DATATYPE> dist(1, 64);
+std::uniform_int_distribution<DATATYPE> dist(1, host_elements/2);
 
 
   for (int iter = 0; iter < num_iter; iter++) {
@@ -408,11 +408,11 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             }
         }
         }
-        std::cout << "\nref:" << std::endl;
+        /*std::cout << "\nref:" << std::endl;
         for (auto& re :map_ref) {
 
             std::cout << re.first << "  "<< re.second << "\n";
-        }
+        }*/
 
         //std::unordered_map<DATATYPE, size_t> result;
         std::map<DATATYPE, size_t> result;
@@ -424,11 +424,11 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             }
         }
 
-        std::cout << "\nresult:" << std::endl;
+        /*std::cout << "\nresult:" << std::endl;
         for (auto& re :result) {
 
             std::cout << re.first << "  "<< re.second << "\n";
-        }
+        }*/
 
         if(map_ref==result){
             std::cout << "equal"<< "\n";
@@ -462,12 +462,13 @@ std::cout << std::endl
             << std::endl;
 
 
+    std::ofstream log("logfile.csv", std::ios_base::app | std::ios_base::out);
+    log << host_elements << ";" << npu_time_total / n_iterations << ";" << cpu_time_total / n_iterations << "\n";
 
   // Print Pass/Fail result of our test
   if (!errors) {
     std::cout << std::endl << "PASS!" << std::endl << std::endl;
-    std::ofstream log("logfile.csv", std::ios_base::app | std::ios_base::out);
-    log << host_elements << ";" << npu_time_total / n_iterations << ";" << cpu_time_total / n_iterations << "\n";
+
     return 0;
   } else {
     std::cout << std::endl

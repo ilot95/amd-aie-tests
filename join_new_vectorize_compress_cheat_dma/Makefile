@@ -8,8 +8,8 @@ targetname = vectorScalar
 devicename ?= $(if $(filter 1,$(NPU2)),npu2,npu)
 
 #todo make this settable
-trace_size = 8192
-#trace_size = 0
+#trace_size = 8192
+trace_size = 0
 
 
 # we assume 4 bytes as per element
@@ -19,8 +19,11 @@ oneMBElements =$(shell echo 2*128*1024 | bc)
 #hostElements = $(shell echo $(oneMBElements)*16 | bc)
 # 32768 does not work (overflow)
 #max is 16384
-#hostElements = 16384
-hostElements?=32768
+hostElements = 16384
+#hostElements?=32768
+#hostElements?=65536
+#hostElements?=131072
+#hostElements?=262144
 
 CONFID:= ${hostElements}.conf
 build_mlir/$(CONFID):

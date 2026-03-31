@@ -62,7 +62,7 @@ void writeout(
             //262144
             //for (int i = 0; i < 65536; i++) {
             //todo why are two loops not possible
-            for (int64_t i = 0; i < ((int64_t)iters_outer)*iters_inner; i++) {
+            for (int64_t i = 0; i < ((int64_t)iters_outer)*(int64_t)iters_inner; i++) {
             //for (int i = 0; i < 512; i++) {
             //for (int z = 0; z < 512; z++) {
                 objectfifo_acquire(&of_in);
