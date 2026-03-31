@@ -50,6 +50,13 @@ void writeout(
             objectfifo_t of_out = {(int32_t)out_acq_lock, (int32_t)out_rel_lock, -1, 1, 2,
                                  {out_buf0, out_buf1}};
             event0();
+
+            objectfifo_acquire(&of_out);
+            int32_t *out = (int32_t *)objectfifo_get_buffer(&of_out, 0);
+            int freeOutBuf = 4096;
+            int outCount = 0;
+            int count_out_ac = 1;
+
             for (int i = 0; i < 65536; i++) {
                 objectfifo_acquire(&of_in);
                 int32_t *input = (int32_t *)objectfifo_get_buffer(&of_in, i);
@@ -58,24 +65,43 @@ void writeout(
                 int32_t *numer_el = (int32_t *)objectfifo_get_buffer(&of_in_of_numer, i);
                 *elems_produced += *numer_el;
 
-                objectfifo_acquire(&of_out);
-                int32_t *out = (int32_t *)objectfifo_get_buffer(&of_out, i);
+                auto to_copy = std::min(*numer_el,freeOutBuf);
 
-               v64uint8 *restrict outPtr = (v64uint8 *)out;
-               v64uint8 *restrict inPtr = (v64uint8 *)input;
-               AIE_PREPARE_FOR_PIPELINING
-              AIE_LOOP_MIN_ITERATION_COUNT(6)
-              for (int j = 0; j < (4096); j += 16) // Nx samples per loop
+
+
+              for (int j = 0; j < to_copy; j += 1) // Nx samples per loop
               {
-                *outPtr++ = *inPtr++;
+                out[j+outCount] = input[j];
+              }
+              freeOutBuf = freeOutBuf - to_copy;
+              outCount = outCount + to_copy;
+
+              if(freeOutBuf == 0){
+
+                objectfifo_release(&of_out);
+                objectfifo_acquire(&of_out);
+                out = (int32_t *)objectfifo_get_buffer(&of_out, count_out_ac);
+                count_out_ac ++;
+
+                freeOutBuf = 4096;
+                outCount =0;
+                for (int j = 0; j < ((*numer_el) - to_copy); j += 1) // Nx samples per loop
+                {
+                out[j] = input[j+to_copy];
+                }
+                freeOutBuf = freeOutBuf -((*numer_el) - to_copy);
+                outCount = outCount + ((*numer_el) - to_copy);
               }
 
 
-                 objectfifo_release(&of_out);
-                 objectfifo_release(&of_in_of_numer);
+                objectfifo_release(&of_in_of_numer);
                 objectfifo_release(&of_in);
 
             }
+            for (int j = outCount; j < 4096; j += 1){
+            out[j] = -1;
+            }
+            objectfifo_release(&of_out);
              event1();
          }
 

@@ -342,9 +342,9 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
               << "NPU time: " << npu_time << "us."
               << std::endl;
 
-  if (iter < n_warmup_iterations)
+  //if (iter < n_warmup_iterations)
       /* Warmup iterations do not count towards average runtime. */
-      continue;
+      //continue;
 
     npu_time_total += npu_time;
     npu_time_min = (npu_time < npu_time_min) ? npu_time : npu_time_min;
@@ -406,23 +406,25 @@ std::uniform_int_distribution<DATATYPE> dist(1, 64);
             }
         }
         }
-        /*std::cout << "\nref:" << std::endl;
+        std::cout << "\nref:" << std::endl;
         for (auto& re :map_ref) {
 
             std::cout << re.first << "  "<< re.second << "\n";
-        }*/
+        }
 
         //std::unordered_map<DATATYPE, size_t> result;
         std::map<DATATYPE, size_t> result;
-        for (uint32_t i = 0; i < OUT_SIZE; i++) {
+
+        //for (uint32_t i = 0; i < OUT_SIZE; i++) {
+        for (uint32_t i = 0; i < bufDone[0]; i++) {
             result[bufOut[i]] ++;
         }
 
-        /*std::cout << "\nresult:" << std::endl;
+        std::cout << "\nresult:" << std::endl;
         for (auto& re :result) {
 
             std::cout << re.first << "  "<< re.second << "\n";
-        }*/
+        }
 
         if(map_ref==result){
             std::cout << "equal"<< "\n";
