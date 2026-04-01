@@ -5,7 +5,7 @@
 #include <aie_api/aie.hpp>
 #include <aie_api/utils.hpp>
 #include "aie_kernel_utils.h"
-#include "aie_objectfifo.h"
+
 
 extern "C" {
 

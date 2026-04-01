@@ -102,6 +102,9 @@ int main(int argc, const char *argv[]) {
   options.add_option("","e","host_elements", "host elements (assumed to be 4 bytes)",
       cxxopts::value<int64_t>()->default_value("1024"),"host elements");
 
+  options.add_option("","d","dist", "distribution value ",
+      cxxopts::value<int32_t>()->default_value("100"),"distribution value");
+
   cxxopts::ParseResult vm;
   test_utils::parse_options(argc, argv, options, vm);
   int verbosity = vm["verbosity"].as<int>();
@@ -109,6 +112,8 @@ int main(int argc, const char *argv[]) {
   int n_warmup_iterations = vm["warmup"].as<int>();
   int trace_size = vm["trace_sz"].as<int>();
   std::string trace_file = vm["trace_file"].as<std::string>();
+
+  int upperdist = vm["dist"].as<int>();
 
   // Declaring design constants
   constexpr bool VERIFY = true;
@@ -220,6 +225,7 @@ int main(int argc, const char *argv[]) {
   float npu_time_total = 0;
   float npu_time_min = 9999999;
   float npu_time_max = 0;
+  float selectivi = 0;
 
   float cpu_time_total = 0;
 
@@ -244,7 +250,7 @@ int main(int argc, const char *argv[]) {
 std::mt19937 rng(seed);
 
 // Define distribution (range 1–100)
-std::uniform_int_distribution<DATATYPE> dist(1, host_elements/2);
+std::uniform_int_distribution<DATATYPE> dist(1, upperdist);
 
 
   for (int iter = 0; iter < num_iter; iter++) {
@@ -397,7 +403,10 @@ std::uniform_int_distribution<DATATYPE> dist(1, host_elements/2);
          std::cout << ""
               << "ref.size(): " << ref.size() << ""
               << std::endl;
-
+         std::cout << ""
+              << "selectivity: " << (double)ref.size() / (host_elements*host_elements) << ""
+              << std::endl;
+        selectivi = (double)ref.size() / (host_elements*host_elements);
         for (uint32_t i = 0; i < IN_SIZE; i++) {
             for (uint32_t j = 0; j < IN_SIZE; j++) {
             if(bufInA[i] == bufInB[j]){
@@ -463,7 +472,7 @@ std::cout << std::endl
 
 
     std::ofstream log("logfile.csv", std::ios_base::app | std::ios_base::out);
-    log << host_elements << ";" << npu_time_total / n_iterations << ";" << cpu_time_total / n_iterations << "\n";
+    log << host_elements << ";" << npu_time_total / n_iterations << ";" << cpu_time_total / n_iterations << ";"<< selectivi<<"\n";
 
   // Print Pass/Fail result of our test
   if (!errors) {
