@@ -173,9 +173,9 @@ void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * re
 
 }
 //todo vectorize this
- for (auto vv = valuev; vv < value + 4096;vv++) {
+ /*for (auto vv = valuev; vv < value + 4096;vv++) {
     *vv= -1;
- }
+ }*/
  //*elems_produced = value + 4096 - valuev;
  *elems_produced = join_count;
 

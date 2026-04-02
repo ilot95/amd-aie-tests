@@ -8,8 +8,8 @@ targetname = vectorScalar
 devicename ?= $(if $(filter 1,$(NPU2)),npu2,npu)
 
 #todo make this settable
-#trace_size = 8192
-trace_size = 0
+trace_size = 16384
+#trace_size = 0
 
 
 # we assume 4 bytes as per element
