@@ -249,7 +249,7 @@ int main(int argc, const char *argv[]) {
 // Create random engine with seed
 std::mt19937 rng(seed);
 
-upperdist = 64;
+upperdist = 300;
 // Define distribution (range 1–100)
 std::uniform_int_distribution<DATATYPE> dist(1, upperdist);
 

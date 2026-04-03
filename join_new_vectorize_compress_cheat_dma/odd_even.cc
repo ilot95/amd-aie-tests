@@ -102,7 +102,7 @@ void writeout(
 
 
 void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * restrict value,const int32_t N,int32_t * restrict elems_produced) {
-  event0();
+  //event0();
 
 
 
@@ -163,7 +163,7 @@ void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * re
  *elems_produced = join_count;
 
 
-event1();
+//event1();
 }
 
 } // extern "C"
