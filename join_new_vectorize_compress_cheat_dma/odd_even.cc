@@ -9,24 +9,7 @@
 
 
 
-template <typename T, int N>
-__attribute__((noinline)) void passThrough_aie(T *restrict in, T *restrict out,
-                                               const int32_t height,
-                                               const int32_t width) {
-  event0();
 
-  v64uint8 *restrict outPtr = (v64uint8 *)out;
-  v64uint8 *restrict inPtr = (v64uint8 *)in;
-
-  AIE_PREPARE_FOR_PIPELINING
-  AIE_LOOP_MIN_ITERATION_COUNT(6)
-  for (int j = 0; j < (height * width); j += N) // Nx samples per loop
-  {
-    *outPtr++ = *inPtr++;
-  }
-
-  event1();
-}
 
 extern "C" {
 
@@ -51,7 +34,7 @@ void writeout(
 
             objectfifo_t of_out = {(int32_t)out_acq_lock, (int32_t)out_rel_lock, -1, 1, 2,
                                  {out_buf0, out_buf1}};
-            event0();
+
 
             objectfifo_acquire(&of_out);
             int32_t *out = (int32_t *)objectfifo_get_buffer(&of_out, 0);
@@ -63,6 +46,7 @@ void writeout(
             //for (int i = 0; i < 65536; i++) {
             //todo why are two loops not possible
             for (int64_t i = 0; i < ((int64_t)iters_outer)*(int64_t)iters_inner; i++) {
+
             //for (int i = 0; i < 512; i++) {
             //for (int z = 0; z < 512; z++) {
                 objectfifo_acquire(&of_in);
@@ -70,6 +54,7 @@ void writeout(
 
                 objectfifo_acquire(&of_in_of_numer);
                 int32_t *numer_el = (int32_t *)objectfifo_get_buffer(&of_in_of_numer, i);
+                //event0();
                 *elems_produced += *numer_el;
 
                 auto to_copy = std::min(*numer_el,freeOutBuf);
@@ -99,7 +84,7 @@ void writeout(
                 freeOutBuf = freeOutBuf -((*numer_el) - to_copy);
                 outCount = outCount + ((*numer_el) - to_copy);
               }
-
+                //event1();
 
                 objectfifo_release(&of_in_of_numer);
                 objectfifo_release(&of_in);
@@ -109,13 +94,11 @@ void writeout(
             out[j] = -1;
             }
             objectfifo_release(&of_out);
-             event1();
+
          }
 
 
-void passThroughLine(int32_t *in, int32_t *out, int32_t lineWidth) {
-  passThrough_aie<int32_t, 16>(in, out, 1, lineWidth);
-}
+
 
 
 void odd_even(int32_t * restrict input, int32_t * restrict input1,  int32_t * restrict value,const int32_t N,int32_t * restrict elems_produced) {

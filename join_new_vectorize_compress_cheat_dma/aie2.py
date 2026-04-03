@@ -252,7 +252,7 @@ def external_mem_to_core():
 
 
 
-            tiles_to_trace = [ComputeTile02,ComputeTile12 ,MemTile01,MemTile11]
+            tiles_to_trace = [ComputeTile12,ComputeTile02 ]
             if trace_size > 0:
                 trace_utils.configure_packet_tracing_flow(tiles_to_trace, ShimTile20)
                 #todo use other shimtile to trace?
